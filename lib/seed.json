@@ -1,0 +1,604 @@
+{
+ "tournament": {
+  "name": "TNHVPL Season 5",
+  "short": "TNHVPL",
+  "subtitle": "TNH Volleyball \u00b7 Season 5",
+  "dates": "31 Oct \u2013 1 Nov 2026"
+ },
+ "teams": [
+  {
+   "id": "spike",
+   "name": "Spike Surge",
+   "short": "SS",
+   "color": "#4CC9F0",
+   "owner": "Deepak",
+   "logo": "/logos/spike.jpg",
+   "squad": [
+    23,
+    29,
+    30,
+    11,
+    41,
+    2,
+    25,
+    18,
+    43
+   ]
+  },
+  {
+   "id": "eagle",
+   "name": "Eagle Squad",
+   "short": "ES",
+   "color": "#F4A261",
+   "owner": "Manju",
+   "logo": "/logos/eagle.jpg",
+   "squad": [
+    13,
+    36,
+    4,
+    40,
+    3,
+    21,
+    14,
+    34
+   ]
+  },
+  {
+   "id": "supreme",
+   "name": "Supreme Warriors",
+   "short": "SW",
+   "color": "#FFD166",
+   "owner": "Pushpendra",
+   "logo": "/logos/supreme.jpg",
+   "squad": [
+    38,
+    7,
+    22,
+    6,
+    35,
+    17,
+    28,
+    24,
+    26
+   ]
+  },
+  {
+   "id": "saiyans",
+   "name": "Super Saiyans",
+   "short": "SY",
+   "color": "#80B918",
+   "owner": "Neeraj",
+   "logo": "/logos/saiyans.jpg",
+   "squad": [
+    20,
+    42,
+    12,
+    1,
+    9,
+    33,
+    8,
+    39
+   ]
+  },
+  {
+   "id": "pavilion",
+   "name": "Pavilion Rovers",
+   "short": "PR",
+   "color": "#F15BB5",
+   "owner": "Shashi",
+   "logo": "/logos/pavilion.jpg",
+   "squad": [
+    32,
+    10,
+    31,
+    16,
+    5,
+    27,
+    19,
+    15,
+    37
+   ]
+  }
+ ],
+ "players": [
+  {
+   "no": 1,
+   "name": "Sandeep Muttineni",
+   "skill": "Intermediate",
+   "photo": "/players/1.jpg",
+   "team": "saiyans"
+  },
+  {
+   "no": 2,
+   "name": "Piyush Sharma",
+   "skill": "Intermediate",
+   "photo": "/players/2.jpg",
+   "team": "spike"
+  },
+  {
+   "no": 3,
+   "name": "Annarao Kulkarni",
+   "skill": "Beginner",
+   "photo": "/players/3.jpg",
+   "team": "eagle"
+  },
+  {
+   "no": 4,
+   "name": "Arunkumar B",
+   "skill": "Advanced",
+   "photo": "/players/4.jpg",
+   "team": "eagle"
+  },
+  {
+   "no": 5,
+   "name": "Jeevan Gowda",
+   "skill": "Advanced",
+   "photo": "/players/5.jpg",
+   "team": "pavilion"
+  },
+  {
+   "no": 6,
+   "name": "Vimal Kumar G",
+   "skill": "Intermediate",
+   "photo": "/players/6.jpg",
+   "team": "supreme"
+  },
+  {
+   "no": 7,
+   "name": "Dixith Shetty",
+   "skill": "Intermediate",
+   "photo": "/players/7.jpg",
+   "team": "supreme"
+  },
+  {
+   "no": 8,
+   "name": "Anubhab Panigrahi",
+   "skill": "Intermediate",
+   "photo": "/players/8.jpg",
+   "team": "saiyans"
+  },
+  {
+   "no": 9,
+   "name": "Sujay Kumar",
+   "skill": "Intermediate",
+   "photo": "/players/9.jpg",
+   "team": "saiyans"
+  },
+  {
+   "no": 10,
+   "name": "Dhamotharan",
+   "skill": "Intermediate",
+   "photo": "/players/10.jpg",
+   "team": "pavilion"
+  },
+  {
+   "no": 11,
+   "name": "Ananth",
+   "skill": "Intermediate",
+   "photo": "/players/11.jpg",
+   "team": "spike"
+  },
+  {
+   "no": 12,
+   "name": "Ashwin Sharma",
+   "skill": "Intermediate",
+   "photo": "/players/12.jpg",
+   "team": "saiyans"
+  },
+  {
+   "no": 13,
+   "name": "Rama Krushna Panda",
+   "skill": "Intermediate",
+   "photo": "/players/13.jpg",
+   "team": "eagle"
+  },
+  {
+   "no": 14,
+   "name": "Karthik Kumar R",
+   "skill": "Intermediate",
+   "photo": "/players/14.jpg",
+   "team": "eagle"
+  },
+  {
+   "no": 15,
+   "name": "Virpal Singh",
+   "skill": "Advanced",
+   "photo": "/players/15.jpg",
+   "team": "pavilion"
+  },
+  {
+   "no": 16,
+   "name": "Anoop C K",
+   "skill": "Beginner",
+   "photo": "/players/16.jpg",
+   "team": "pavilion"
+  },
+  {
+   "no": 17,
+   "name": "Karthik M",
+   "skill": "Intermediate",
+   "photo": "/players/17.jpg",
+   "team": "supreme"
+  },
+  {
+   "no": 18,
+   "name": "Shreyas (Tiger)",
+   "skill": "Intermediate",
+   "photo": "/players/18.jpg",
+   "team": "spike"
+  },
+  {
+   "no": 19,
+   "name": "Rahul",
+   "skill": "Intermediate",
+   "photo": "/players/19.jpg",
+   "team": "pavilion"
+  },
+  {
+   "no": 20,
+   "name": "Sanketh Kumar",
+   "skill": "Intermediate",
+   "photo": "/players/20.jpg",
+   "team": "saiyans"
+  },
+  {
+   "no": 21,
+   "name": "Mahesh",
+   "skill": "Intermediate",
+   "photo": "/players/21.jpg",
+   "team": "eagle"
+  },
+  {
+   "no": 22,
+   "name": "Madhu Gowda",
+   "skill": "Beginner",
+   "photo": "/players/22.jpg",
+   "team": "supreme"
+  },
+  {
+   "no": 23,
+   "name": "Yakub",
+   "skill": "Intermediate",
+   "photo": "/players/23.jpg",
+   "team": "spike"
+  },
+  {
+   "no": 24,
+   "name": "Yaswant",
+   "skill": "Intermediate",
+   "photo": null,
+   "team": "supreme"
+  },
+  {
+   "no": 25,
+   "name": "Vasanth G",
+   "skill": "Advanced",
+   "photo": "/players/25.jpg",
+   "team": "spike"
+  },
+  {
+   "no": 26,
+   "name": "Patil G B",
+   "skill": "Beginner",
+   "photo": "/players/26.jpg",
+   "team": "supreme"
+  },
+  {
+   "no": 27,
+   "name": "Nithin HP",
+   "skill": "Intermediate",
+   "photo": "/players/27.jpg",
+   "team": "pavilion"
+  },
+  {
+   "no": 28,
+   "name": "Pruthvik",
+   "skill": "Intermediate",
+   "photo": "/players/28.jpg",
+   "team": "supreme"
+  },
+  {
+   "no": 29,
+   "name": "Nikhilesh Bisoi",
+   "skill": "Intermediate",
+   "photo": "/players/29.jpg",
+   "team": "spike"
+  },
+  {
+   "no": 30,
+   "name": "Sanjith",
+   "skill": "Intermediate",
+   "photo": "/players/30.jpg",
+   "team": "spike"
+  },
+  {
+   "no": 31,
+   "name": "Manish",
+   "skill": "Intermediate",
+   "photo": "/players/31.jpg",
+   "team": "pavilion"
+  },
+  {
+   "no": 32,
+   "name": "Sandeep Singh",
+   "skill": "Intermediate",
+   "photo": "/players/32.jpg",
+   "team": "pavilion"
+  },
+  {
+   "no": 33,
+   "name": "Akarsh Sosle",
+   "skill": "Beginner",
+   "photo": "/players/33.jpg",
+   "team": "saiyans"
+  },
+  {
+   "no": 34,
+   "name": "Yuvan Tejas",
+   "skill": "Beginner",
+   "photo": "/players/34.jpg",
+   "team": "eagle"
+  },
+  {
+   "no": 35,
+   "name": "Sriharsha Shetty",
+   "skill": "Intermediate",
+   "photo": "/players/35.jpg",
+   "team": "supreme"
+  },
+  {
+   "no": 36,
+   "name": "Avinash",
+   "skill": "Intermediate",
+   "photo": "/players/36.jpg",
+   "team": "eagle"
+  },
+  {
+   "no": 37,
+   "name": "Suresh Kumar",
+   "skill": "Beginner",
+   "photo": "/players/37.jpg",
+   "team": "pavilion"
+  },
+  {
+   "no": 38,
+   "name": "Shayan",
+   "skill": "Intermediate",
+   "photo": "/players/38.jpg",
+   "team": "supreme"
+  },
+  {
+   "no": 39,
+   "name": "Aditya",
+   "skill": "Intermediate",
+   "photo": "/players/39.jpg",
+   "team": "saiyans"
+  },
+  {
+   "no": 40,
+   "name": "Mohammed Muzamil",
+   "skill": "Beginner",
+   "photo": "/players/40.jpg",
+   "team": "eagle"
+  },
+  {
+   "no": 41,
+   "name": "Vinod",
+   "skill": "Beginner",
+   "photo": "/players/41.jpg",
+   "team": "spike"
+  },
+  {
+   "no": 42,
+   "name": "Gangadhar Channaveer",
+   "skill": "Beginner",
+   "photo": "/players/42.jpg",
+   "team": "saiyans"
+  },
+  {
+   "no": 43,
+   "name": "Sanjeev Kumar",
+   "skill": "Beginner",
+   "photo": "/players/43.jpg",
+   "team": "spike"
+  }
+ ],
+ "fixtures": [
+  {
+   "id": "m1",
+   "no": 1,
+   "stage": "League",
+   "day": "Day 1",
+   "date": "2026-10-31",
+   "time": "4:00 PM",
+   "a": {
+    "team": "eagle"
+   },
+   "b": {
+    "team": "saiyans"
+   }
+  },
+  {
+   "id": "m2",
+   "no": 2,
+   "stage": "League",
+   "day": "Day 1",
+   "date": "2026-10-31",
+   "time": "4:45 PM",
+   "a": {
+    "team": "supreme"
+   },
+   "b": {
+    "team": "spike"
+   }
+  },
+  {
+   "id": "m3",
+   "no": 3,
+   "stage": "League",
+   "day": "Day 1",
+   "date": "2026-10-31",
+   "time": "5:30 PM",
+   "a": {
+    "team": "saiyans"
+   },
+   "b": {
+    "team": "pavilion"
+   }
+  },
+  {
+   "id": "m4",
+   "no": 4,
+   "stage": "League",
+   "day": "Day 1",
+   "date": "2026-10-31",
+   "time": "6:15 PM",
+   "a": {
+    "team": "eagle"
+   },
+   "b": {
+    "team": "spike"
+   }
+  },
+  {
+   "id": "m5",
+   "no": 5,
+   "stage": "League",
+   "day": "Day 1",
+   "date": "2026-10-31",
+   "time": "7:00 PM",
+   "a": {
+    "team": "pavilion"
+   },
+   "b": {
+    "team": "supreme"
+   }
+  },
+  {
+   "id": "m6",
+   "no": 6,
+   "stage": "League",
+   "day": "Day 1",
+   "date": "2026-10-31",
+   "time": "7:45 PM",
+   "a": {
+    "team": "saiyans"
+   },
+   "b": {
+    "team": "spike"
+   }
+  },
+  {
+   "id": "m7",
+   "no": 7,
+   "stage": "League",
+   "day": "Day 1",
+   "date": "2026-10-31",
+   "time": "8:30 PM",
+   "a": {
+    "team": "eagle"
+   },
+   "b": {
+    "team": "supreme"
+   }
+  },
+  {
+   "id": "m8",
+   "no": 8,
+   "stage": "League",
+   "day": "Day 1",
+   "date": "2026-10-31",
+   "time": "9:15 PM",
+   "a": {
+    "team": "pavilion"
+   },
+   "b": {
+    "team": "spike"
+   }
+  },
+  {
+   "id": "m9",
+   "no": 9,
+   "stage": "League",
+   "day": "Day 2",
+   "date": "2026-11-01",
+   "time": "4:00 PM",
+   "a": {
+    "team": "saiyans"
+   },
+   "b": {
+    "team": "supreme"
+   }
+  },
+  {
+   "id": "m10",
+   "no": 10,
+   "stage": "League",
+   "day": "Day 2",
+   "date": "2026-11-01",
+   "time": "4:45 PM",
+   "a": {
+    "team": "eagle"
+   },
+   "b": {
+    "team": "pavilion"
+   }
+  },
+  {
+   "id": "m11",
+   "no": 11,
+   "stage": "Qualifier 1",
+   "day": "Day 2",
+   "date": "2026-11-01",
+   "time": "5:30 PM",
+   "a": {
+    "rank": 1
+   },
+   "b": {
+    "rank": 2
+   }
+  },
+  {
+   "id": "m12",
+   "no": 12,
+   "stage": "Eliminator",
+   "day": "Day 2",
+   "date": "2026-11-01",
+   "time": "6:30 PM",
+   "a": {
+    "rank": 3
+   },
+   "b": {
+    "rank": 4
+   }
+  },
+  {
+   "id": "m13",
+   "no": 13,
+   "stage": "Qualifier 2",
+   "day": "Day 2",
+   "date": "2026-11-01",
+   "time": "7:30 PM",
+   "a": {
+    "loser": "m11"
+   },
+   "b": {
+    "winner": "m12"
+   }
+  },
+  {
+   "id": "m14",
+   "no": 14,
+   "stage": "Final",
+   "day": "Day 2",
+   "date": "2026-11-01",
+   "time": "8:30 PM",
+   "a": {
+    "winner": "m11"
+   },
+   "b": {
+    "winner": "m13"
+   }
+  }
+ ]
+}
