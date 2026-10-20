@@ -80,7 +80,7 @@ function AdminInner() {
               onChange={(e) =>
                 setFmt(which, { targets: e.target.value.split(/[,\s-]+/).filter(Boolean).map(Number).filter((n) => n > 0) })
               }
-              placeholder="15,15,15"
+              placeholder="21,21,15"
             />
           </label>
           <label>

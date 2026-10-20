@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { BestPlayerNote } from "@/components/BestPlayerPicker";
 import { useLive } from "@/components/LiveProvider";
 import { LiveScore } from "@/components/LiveScore";
 import { ShareMatch } from "@/components/ShareMatch";
 import { Loading } from "@/components/ui";
+import { formatFor } from "@/lib/engine";
 
 export default function MatchPage() {
   const { id } = useParams<{ id: string }>();
@@ -15,15 +17,18 @@ export default function MatchPage() {
   if (!fx) return <div className="empty">Match not found</div>;
   const m = calc.ms[fx.id];
   const r = calc.resolved[fx.id];
-  const fmt = m.format;
+  const fmt = formatFor(fx, state.config.settings);
   const title = `${team(r.a)?.name ?? r.labelA} vs ${team(r.b)?.name ?? r.labelB}`;
   return (
     <>
       <LiveScore fx={fx} link={false} share={false} />
-      <p className="note" style={{ textAlign: "center" }}>
-        Best of {fmt.bestOf} · sets to {fmt.targets.join("-")} · win by {fmt.winBy}
-        {fmt.cap ? ` · cap ${fmt.cap}` : ""}. Updates by itself.
-      </p>
+      {m.status !== "scheduled" && (
+        <p className="note" style={{ textAlign: "center" }}>
+          Best of {fmt.bestOf} · sets to {fmt.targets.join("-")} · win by {fmt.winBy}
+          {fmt.cap ? ` · cap ${fmt.cap}` : ""}. Updates by itself.
+        </p>
+      )}
+      <BestPlayerNote matchId={fx.id} />
       <div className="row" style={{ justifyContent: "center" }}>
         <ShareMatch id={fx.id} title={title} className="btn gold" />
         <Link className="btn" href="/fixtures">

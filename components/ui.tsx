@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { scoreLine, TIE_LABELS } from "@/lib/engine";
+import { formatFor, scoreLine, TIE_LABELS } from "@/lib/engine";
 import type { Fixture, MatchState, Team } from "@/lib/types";
 import { useLive } from "./LiveProvider";
 
@@ -46,10 +46,11 @@ export { fmtDate };
 
 /** One fixture row: time, teams, result. */
 export function MatchRow({ fx }: { fx: Fixture }) {
-  const { calc } = useLive();
-  if (!calc) return null;
+  const { calc, state } = useLive();
+  if (!calc || !state) return null;
   const m = calc.ms[fx.id];
   const r = calc.resolved[fx.id];
+  const fmt = formatFor(fx, state.config.settings);
   const wA = m.status === "done" && m.winner === "A";
   const wB = m.status === "done" && m.winner === "B";
   return (
@@ -57,6 +58,7 @@ export function MatchRow({ fx }: { fx: Fixture }) {
       <div className="mmeta">
         <b>{fx.time}</b>
         <span>{fx.stage === "League" ? `Match ${fx.no}` : fx.stage}</span>
+        {m.status === "scheduled" && <small className="muted">{fmt.targets.join("-")}</small>}
       </div>
       <div className="mteams">
         <div className={wA ? "win" : wB ? "lose" : ""}>
@@ -160,11 +162,13 @@ export function PinGate({ need, children }: { need: "scorer" | "admin"; children
         } else setMsg("");
       }}
     >
-      <h2>{need === "admin" ? "Admin" : "Scorer"} PIN</h2>
+      <h2>{need === "admin" ? "Admin" : "Staff"} PIN</h2>
       <p className="muted">
         {role === "scorer" && need === "admin"
           ? "This page needs the admin PIN."
-          : "Enter the PIN to continue. It stays on this phone."}
+          : need === "scorer"
+            ? "Enter the admin or scorer PIN to continue. It stays on this phone."
+            : "Enter the PIN to continue. It stays on this phone."}
       </p>
       <input
         inputMode="numeric"

@@ -70,6 +70,7 @@ function play(ev: Record<string, MatchEvent[]>): AppState {
     teams: seed.teams,
     fixtures: seed.fixtures,
     settings: { league: L, playoff: P, points: { "2-0": { w: 2, l: 0 }, "2-1": { w: 2, l: 0 } }, tiebreak: ["points", "setDiff", "setsWon", "pointRatio"], showPhotos: true, timeoutSeconds: 30 },
+    awards: { setter: null, attacker: null, server: null, mvp: null, emerging: null },
   } as AppState["config"];
   const matches: AppState["matches"] = {};
   for (const [id, e] of Object.entries(ev)) matches[id] = { v: 1, ev: e };

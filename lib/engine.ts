@@ -213,11 +213,14 @@ export function computeAll(state: AppState) {
   }
   const final = config.fixtures.find((f) => f.stage === "Final");
   let champion: string | null = null;
+  let runnerUp: string | null = null;
   if (final && ms[final.id]?.status === "done") {
     const r = resolved[final.id];
-    champion = ms[final.id].winner === "A" ? r.a : r.b;
+    const w = ms[final.id].winner;
+    champion = w === "A" ? r.a : r.b;
+    runnerUp = w === "A" ? r.b : r.a;
   }
-  return { resolved, ms, table, leagueDone, champion };
+  return { resolved, ms, table, leagueDone, champion, runnerUp };
 }
 
 // ---------- Standings ----------

@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { AwardsGrid } from "@/components/AwardsGrid";
 import { useLive } from "@/components/LiveProvider";
 import { LiveScore } from "@/components/LiveScore";
 import { StaffLogin } from "@/components/StaffLogin";
 import { Loading, MatchRow, StandingsTable } from "@/components/ui";
+import { emptyAwards, filledAwards } from "@/lib/awards";
 
 export default function Home() {
   const { state, calc, team } = useLive();
@@ -14,6 +16,11 @@ export default function Home() {
   const upcoming = fx.filter((f) => calc.ms[f.id].status === "scheduled").slice(0, live.length ? 2 : 3);
   const recent = fx.filter((f) => calc.ms[f.id].status === "done").slice(-3).reverse();
   const champ = team(calc.champion);
+  const runner = team(calc.runnerUp);
+  const final = state.config.fixtures.find((f) => f.stage === "Final");
+  const finalDone = !!final && calc.ms[final.id]?.status === "done";
+  const awards = state.config.awards ?? emptyAwards();
+  const hasAwards = filledAwards(awards).length > 0;
 
   return (
     <>
@@ -25,13 +32,30 @@ export default function Home() {
       <StaffLogin />
 
       {champ && (
-        <div className="card" style={{ textAlign: "center", borderColor: "var(--gold)" }}>
-          <span className="kicker">Champions</span>
-          <div className="row" style={{ justifyContent: "center", marginTop: 8 }}>
+        <div className="podium">
+          <div className="card podium-card champ" style={{ ["--tc" as string]: champ.color }}>
+            <span className="kicker">Champions</span>
             <img className="logo" src={champ.logo} alt="" width={72} height={72} />
-            <h1>{champ.name}</h1>
+            <h2>{champ.name}</h2>
           </div>
+          {runner && (
+            <div className="card podium-card runner" style={{ ["--tc" as string]: runner.color }}>
+              <span className="kicker">Runner-up</span>
+              <img className="logo" src={runner.logo} alt="" width={56} height={56} />
+              <h3>{runner.name}</h3>
+            </div>
+          )}
         </div>
+      )}
+
+      {finalDone && (
+        <section className="stack">
+          <div className="sechead">
+            <h2>Awards</h2>
+            <Link href="/awards">{hasAwards ? "All awards →" : "Set awards →"}</Link>
+          </div>
+          <AwardsGrid awards={awards} emptyNote="Awards will appear here once announced." />
+        </section>
       )}
 
       {live.length > 0 ? (

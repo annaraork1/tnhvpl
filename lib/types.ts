@@ -35,7 +35,7 @@ export interface Fixture {
 /** How a match is played. */
 export interface Format {
   bestOf: number; // 3 or 5
-  targets: number[]; // points needed per set, e.g. [15,15,15]; last value repeats
+  targets: number[]; // points needed per set, e.g. [21,21,15]; last value repeats
   winBy: number; // usually 2
   cap: number; // 0 = no cap; otherwise first to this score wins the set
   timeouts: number; // per team per set
@@ -70,12 +70,23 @@ export interface Tournament {
   dates: string;
 }
 
+/** Individual award after the Final (player + their team). Null / missing = not set. */
+export type AwardId = "setter" | "attacker" | "server" | "mvp" | "emerging";
+
+export interface AwardEntry {
+  playerNo: number;
+  teamId: string;
+}
+
+export type Awards = Record<AwardId, AwardEntry | null>;
+
 export interface Config {
   v: number;
   tournament: Tournament;
   settings: Settings;
   teams: Team[];
   fixtures: Fixture[];
+  awards: Awards;
 }
 
 export type MatchEvent =
@@ -90,6 +101,8 @@ export interface MatchDoc {
   ev: MatchEvent[];
   /** Admin override of the teams in this match (team ids). */
   over?: { a?: string; b?: string };
+  /** Optional man-of-the-match from either squad (suggestions for tournament MVP). */
+  bestPlayer?: { playerNo: number; teamId: string } | null;
 }
 
 export interface AppState {

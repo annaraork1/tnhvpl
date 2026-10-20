@@ -10,6 +10,7 @@ export default function Standings() {
   const s = state.config.settings;
   const playoffs = state.config.fixtures.filter((f) => f.stage !== "League").sort((a, b) => a.no - b.no);
   const champ = team(calc.champion);
+  const runner = team(calc.runnerUp);
   return (
     <>
       <h1>Points table</h1>
@@ -32,10 +33,19 @@ export default function Standings() {
           ))}
         </div>
         {champ && (
-          <div className="card row" style={{ justifyContent: "center", borderColor: "var(--gold)" }}>
-            <span className="kicker">🏆 Champions</span>
-            <img className="logo" src={champ.logo} alt="" width={48} height={48} />
-            <h2>{champ.name}</h2>
+          <div className="podium">
+            <div className="card podium-card champ" style={{ ["--tc" as string]: champ.color }}>
+              <span className="kicker">Champions</span>
+              <img className="logo" src={champ.logo} alt="" width={48} height={48} />
+              <h2>{champ.name}</h2>
+            </div>
+            {runner && (
+              <div className="card podium-card runner" style={{ ["--tc" as string]: runner.color }}>
+                <span className="kicker">Runner-up</span>
+                <img className="logo" src={runner.logo} alt="" width={40} height={40} />
+                <h3>{runner.name}</h3>
+              </div>
+            )}
           </div>
         )}
       </section>

@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BestPlayerPicker } from "@/components/BestPlayerPicker";
 import { WinConfetti } from "@/components/Confetti";
 import { useLive } from "@/components/LiveProvider";
 import { TimeoutOverlay } from "@/components/TimeoutOverlay";
-import { Loading, PinGate } from "@/components/ui";
+import { Loading, Logo, PinGate } from "@/components/ui";
 import { DEFAULT_TIMEOUT_SECONDS, derive, formatFor, other } from "@/lib/engine";
 import type { MatchEvent, Side } from "@/lib/types";
 
@@ -112,9 +113,14 @@ function Console() {
       <div className="wrap">
         <div className="card stack" style={{ textAlign: "center" }}>
           <span className="kicker">{fx.stage === "League" ? `Match ${fx.no}` : fx.stage} · {fx.time}</span>
-          <h1>
-            {name("A")} vs {name("B")}
-          </h1>
+          <div className="row" style={{ justifyContent: "center", gap: 20, marginTop: 8 }}>
+            {(["A", "B"] as Side[]).map((s) => (
+              <div key={s} className="stack" style={{ alignItems: "center", gap: 6 }}>
+                <Logo team={T[s]} size={64} />
+                <h2 style={{ margin: 0, fontSize: 20 }}>{name(s)}</h2>
+              </div>
+            ))}
+          </div>
           <p className="muted">
             Best of {fmt.bestOf} · sets to {fmt.targets.join("-")} · win by {fmt.winBy} · {fmt.timeouts} timeouts per set
           </p>
@@ -127,7 +133,10 @@ function Console() {
                 style={{ borderColor: T[s]?.color, padding: "16px 20px", fontSize: 18 }}
                 onClick={() => send({ kind: "ev", e: { k: "start", serve: s } }, "start", { serve: s })}
               >
-                {name(s)}
+                <span className="row" style={{ gap: 8 }}>
+                  <Logo team={T[s]} size={28} />
+                  {name(s)}
+                </span>
               </button>
             ))}
           </div>
@@ -149,7 +158,10 @@ function Console() {
         onClick={() => send({ kind: "ev", e: { k: "pt", s, t: Date.now() } }, "point", { side: s })}
         aria-label={`Point to ${name(s)}`}
       >
-        <span className="pname">{name(s)}</span>
+        <span className="pteam">
+          <Logo team={T[s]} size={48} />
+          <span className="pname">{name(s)}</span>
+        </span>
         <span className="ppts">{pts}</span>
         <span className="pset">
           {m.serve === s && !blocked ? <b className="ball">🏐 Serving · </b> : null}Sets {sets}
@@ -255,13 +267,17 @@ function Console() {
 
       {m.status === "done" && (
         <div className="banner">
-          <div className="card">
+          <div className="card stack" style={{ maxWidth: 420, width: "100%", maxHeight: "92vh", overflow: "auto" }}>
             <span className="kicker">Match over</span>
-            <h2>
-              {name(m.winner!)} win {Math.max(m.setsA, m.setsB)}–{Math.min(m.setsA, m.setsB)}
-            </h2>
+            <div className="row" style={{ justifyContent: "center", gap: 12 }}>
+              <Logo team={T[m.winner!]} size={48} />
+              <h2 style={{ margin: 0 }}>
+                {name(m.winner!)} win {Math.max(m.setsA, m.setsB)}–{Math.min(m.setsA, m.setsB)}
+              </h2>
+            </div>
             <p className="muted">{m.sets.map((s) => `${s.a}–${s.b}`).join(", ")}</p>
             <p className="note">The points table has been updated.</p>
+            <BestPlayerPicker matchId={id} teamA={r.a!} teamB={r.b!} compact />
             <Link className="btn gold" href="/score">
               Back to matches
             </Link>

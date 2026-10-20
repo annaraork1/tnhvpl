@@ -129,6 +129,59 @@ table.standings { width: 100%; border-collapse: collapse; font-variant-numeric: 
 .skill.Intermediate { background: #2ead6b; }
 .skill.Beginner { background: #3fa7d6; }
 
+/* champions / runner-up */
+.podium { display: grid; grid-template-columns: 1.15fr 1fr; gap: 12px; align-items: stretch; }
+@media (max-width: 560px) { .podium { grid-template-columns: 1fr; } }
+.podium-card { display: grid; justify-items: center; gap: 8px; text-align: center; padding: 18px 14px; border-top: 4px solid var(--tc, var(--gold)); }
+.podium-card.champ { border-color: var(--gold); }
+.podium-card.champ h2 { margin: 0; font-size: clamp(1.4rem, 4vw, 1.85rem); }
+.podium-card.runner h3 { margin: 0; font-size: clamp(1.1rem, 3.2vw, 1.35rem); color: var(--cream); }
+.podium-card .logo { border-radius: 50%; }
+
+/* awards */
+.awards { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.award { display: grid; justify-items: center; gap: 8px; text-align: center; padding: 16px 12px; border-top: 4px solid var(--tc, var(--gold)); }
+.award img, .award .noimg { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; border: 3px solid var(--tc, var(--gold)); background: var(--card2); }
+.award .noimg { display: grid; place-items: center; font-family: var(--display); font-size: 32px; color: var(--muted); }
+.award b { font-size: 15px; line-height: 1.2; }
+.award-team { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+.award-edit .player-pick-list {
+  display: grid;
+  gap: 6px;
+  max-height: min(42vh, 320px);
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card2);
+}
+.player-pick {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  width: 100%;
+  cursor: pointer;
+}
+.player-pick:hover { background: color-mix(in srgb, var(--tc, var(--gold)) 12%, transparent); }
+.player-pick.on { border-color: var(--tc, var(--gold)); background: color-mix(in srgb, var(--tc, var(--gold)) 18%, transparent); }
+.player-pick img, .player-pick .noimg {
+  width: 44px; height: 44px; border-radius: 50%; object-fit: cover;
+  border: 2px solid var(--tc, var(--gold)); background: var(--card);
+}
+.player-pick .noimg { display: grid; place-items: center; font-family: var(--display); font-size: 18px; color: var(--muted); }
+.player-pick-meta { display: grid; gap: 2px; min-width: 0; }
+.player-pick-meta b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.player-pick-meta small { color: var(--muted); font-size: 12px; }
+.award-current { justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.award-current:last-child { border-bottom: 0; }
+
 /* bracket */
 .bracket { display: grid; gap: 8px; }
 
@@ -149,11 +202,16 @@ table.standings { width: 100%; border-collapse: collapse; font-variant-numeric: 
 .sbar .mid b { font-size: 20px; }
 .pads { display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
 .pad { position: relative; border: 0; border-radius: 0; background: color-mix(in srgb, var(--tc) 22%, var(--bg)); display: grid; grid-template-rows: auto 1fr auto; align-items: center; justify-items: center; padding: 12px 8px; gap: 4px; touch-action: manipulation; min-width: 0; }
+.pad .pteam { display: grid; justify-items: center; gap: 6px; }
+.pad .pteam .logo { border-radius: 50%; box-shadow: 0 0 0 2px color-mix(in srgb, var(--tc) 55%, transparent); }
+.best-pick-list { max-height: min(28vh, 220px) !important; }
+.best-pick.compact { gap: 8px; text-align: left; }
+.motm-suggest { display: grid; gap: 6px; }
 .pad + .pad { border-left: 1px solid var(--line); }
 .pad:active { background: color-mix(in srgb, var(--tc) 45%, var(--bg)); }
 .pad:disabled { cursor: default; }
-.pad .pname { font-family: var(--display); font-weight: 700; font-size: clamp(18px, 5vw, 30px); text-align: center; overflow-wrap: anywhere; }
-.pad .ppts { font-family: var(--display); font-weight: 800; font-size: clamp(96px, 30vw, 240px); line-height: 0.85; font-variant-numeric: tabular-nums; }
+.pad .pname { font-family: var(--display); font-weight: 700; font-size: clamp(14px, 3.8vw, 22px); text-align: center; line-height: 1.15; overflow-wrap: anywhere; max-width: 100%; padding: 0 4px; }
+.pad .ppts { font-family: var(--display); font-weight: 800; font-size: clamp(72px, 24vw, 200px); line-height: 0.85; font-variant-numeric: tabular-nums; }
 .pad .pset { font-family: var(--display); font-size: 18px; color: var(--muted); }
 .pad .ball { color: var(--gold); font-weight: 700; }
 .sfoot { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--line); }

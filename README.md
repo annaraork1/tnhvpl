@@ -6,7 +6,7 @@ It comes preloaded with Season 5:
 
 - the 5 teams, their owners, logos and squads (auction prices are **not** included),
 - all 14 fixtures for 31 Oct and 1 Nov in the current order,
-- the Season 5 rules: league best of 3 to 15, playoffs best of 3 at 21–21–25, **2 points per win, 0 per loss**.
+- the Season 5 rules: league best of 3 at 21–21–15, playoffs best of 3 at 21–21–25, **2 points per win, 0 per loss**.
 
 Points, tie-breaks and set formats can all be changed from the Admin page.
 
@@ -20,6 +20,7 @@ Points, tie-breaks and set formats can all be changed from the Admin page.
 | `/teams`, `/teams/<id>` | Everyone | Teams, owners, squads with photos and skill level |
 | `/match/<id>` | Everyone | Live score for one match (share this link) |
 | `/rules` | Everyone | Match format and points rules (built from the settings) |
+| `/awards` | Everyone / staff | Tournament awards after the Final; admin or scorer can set them |
 | `/display` | TV at the venue | Big live score, points table, results and what's next |
 | `/score` | Scorers (PIN) | Pick a match, tap points, timeouts, undo |
 | `/admin` | Organiser (admin PIN) | Points rules, tie-breaks, set formats, team names/owners/colours, dates and times, set teams by hand, reset a match |
@@ -65,7 +66,7 @@ Set on the Admin page:
 
 - **Points per result:** for best of 3, "2-0" and "2-1" results each have points for the winner and loser. Presets: *2 per win, 0 per loss* (Season 5) or *3 / 2 / 1 / 0* (2-0 win 3, 2-1 win 2, 1-2 loss 1, 0-2 loss 0, the FIVB-style scale adapted to best of 3).
 - **Tie-break order:** league points, set difference, sets won, point ratio, head-to-head by default. Add, remove or reorder: matches won, set ratio, point difference.
-- **Match format** separately for league and playoffs: best of 1/3/5, points per set (e.g. `15,15,15` or `21,21,25`), win by, optional cap, timeouts per set, switch sides in the deciding set.
+- **Match format** separately for league and playoffs: best of 1/3/5, points per set (e.g. `21,21,15` or `21,21,25`), win by, optional cap, timeouts per set, switch sides in the deciding set. These drive scoring and the Rules / match screens — change them on the Admin page.
 
 The table always recalculates from the scored rallies, so a rule change applies to every match at once. Change points rules before the playoffs start, because the playoff pairings follow the table.
 

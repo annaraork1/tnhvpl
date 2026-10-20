@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { checkAction, computeAll, formatFor } from "@/lib/engine";
+import { normalizeAwards, teamForPlayer, validateAwards } from "@/lib/awards";
+import { players } from "@/lib/defaults";
+import { checkAction, computeAll, derive, formatFor } from "@/lib/engine";
 import { ActionError, loadState, resetAll, updateConfig, updateMatch } from "@/lib/store";
-import type { Config, Fixture, MatchEvent, Settings, Side, Team } from "@/lib/types";
+import type { Awards, Config, Fixture, MatchEvent, Settings, Side, Team } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +19,9 @@ function roleFor(pin: string | null): Role {
   return null;
 }
 
-const SCORER_ACTIONS = new Set(["start", "point", "timeout", "resume", "nextSet", "undo"]);
+const MATCH_ACTIONS = new Set(["start", "point", "timeout", "resume", "nextSet", "undo"]);
+/** Scorer may do these in addition to match scoring; everything else needs admin. */
+const SCORER_OK = new Set([...MATCH_ACTIONS, "saveAwards", "setBestPlayer"]);
 const isSide = (s: unknown): s is Side => s === "A" || s === "B";
 
 export async function POST(req: Request) {
@@ -32,14 +36,14 @@ export async function POST(req: Request) {
   const type = String(body.type ?? "");
   if (type === "checkPin") return role ? NextResponse.json({ ok: true, role }) : err("Wrong PIN", 401);
   if (!role) return err("Wrong PIN", 401);
-  if (!SCORER_ACTIONS.has(type) && role !== "admin") return err("Admin PIN needed", 403);
+  if (!SCORER_OK.has(type) && role !== "admin") return err("Admin PIN needed", 403);
 
   try {
     const state = await loadState();
     const id = String(body.id ?? "");
     const fx = state.config.fixtures.find((f) => f.id === id);
 
-    if (SCORER_ACTIONS.has(type)) {
+    if (MATCH_ACTIONS.has(type)) {
       if (!fx) return err("Unknown match", 404);
       const fmt = formatFor(fx, state.config.settings);
       if (type === "start") {
@@ -51,6 +55,8 @@ export async function POST(req: Request) {
         if (type === "undo") {
           if (!m.ev.length) return "Nothing to undo";
           m.ev.pop();
+          const after = derive(m.ev, fmt, toSec);
+          if (after.status !== "done") m.bestPlayer = null;
           return m;
         }
         let e: MatchEvent;
@@ -68,9 +74,25 @@ export async function POST(req: Request) {
         m.ev.push(e);
         return m;
       });
+    } else if (type === "setBestPlayer") {
+      if (!fx) return err("Unknown match", 404);
+      const calc = computeAll(state);
+      if (calc.ms[id]?.status !== "done") return err("Pick best player after the match finishes", 409);
+      const r = calc.resolved[id];
+      if (!r?.a || !r?.b) return err("Teams not decided", 409);
+      const raw = body.playerNo;
+      if (raw === null || raw === "" || raw === undefined) {
+        await updateMatch(id, (m) => ({ ...m, bestPlayer: null }));
+      } else {
+        const playerNo = Number(raw);
+        if (!Number.isInteger(playerNo)) return err("Bad player", 400);
+        const t = teamForPlayer(playerNo, state.config.teams, players);
+        if (!t || (t.id !== r.a && t.id !== r.b)) return err("Player must be from one of the two teams", 400);
+        await updateMatch(id, (m) => ({ ...m, bestPlayer: { playerNo, teamId: t.id } }));
+      }
     } else if (type === "resetMatch") {
       if (!fx) return err("Unknown match", 404);
-      await updateMatch(id, (m) => ({ ...m, ev: [] }));
+      await updateMatch(id, (m) => ({ ...m, ev: [], bestPlayer: null }));
     } else if (type === "setTeams") {
       if (!fx) return err("Unknown match", 404);
       const ids = new Set(state.config.teams.map((t) => t.id));
@@ -123,6 +145,16 @@ export async function POST(req: Request) {
           dates: String(t?.dates ?? c.tournament.dates).slice(0, 60),
         },
       }));
+    } else if (type === "saveAwards") {
+      const calc = computeAll(state);
+      const final = state.config.fixtures.find((f) => f.stage === "Final");
+      if (!final || calc.ms[final.id]?.status !== "done") {
+        return err("Awards can be set after the Final is finished", 409);
+      }
+      const awards = normalizeAwards(body.awards as Awards);
+      const problem = validateAwards(awards, state.config, players);
+      if (problem) return err(problem, 400);
+      await updateConfig((c) => ({ ...c, awards }));
     } else if (type === "resetAll") {
       if (body.confirm !== "RESET") return err("Type RESET to confirm", 400);
       await resetAll();

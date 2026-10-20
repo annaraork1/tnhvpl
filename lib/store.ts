@@ -1,4 +1,5 @@
 import { Redis } from "@upstash/redis";
+import { normalizeAwards } from "./awards";
 import { defaultConfig, defaultSettings, players } from "./defaults";
 import type { AppState, Config, MatchDoc } from "./types";
 
@@ -7,8 +8,16 @@ import type { AppState, Config, MatchDoc } from "./types";
  * otherwise an in-memory store that is fine for local testing but is NOT shared between
  * serverless instances, so it must not be used for the real event.
  */
-const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+// Prefer standard names; also accept Vercel Storage's project-prefixed names
+// (e.g. tnhvpl_KV_*) when those were created because the unprefixed vars already existed.
+const url =
+  process.env.KV_REST_API_URL ||
+  process.env.UPSTASH_REDIS_REST_URL ||
+  process.env.tnhvpl_KV_REST_API_URL;
+const token =
+  process.env.KV_REST_API_TOKEN ||
+  process.env.UPSTASH_REDIS_REST_TOKEN ||
+  process.env.tnhvpl_KV_REST_API_TOKEN;
 const PREFIX = process.env.TOURNAMENT_KEY || "tnhvpl-s5";
 
 const redis = url && token ? new Redis({ url, token }) : null;
@@ -59,13 +68,15 @@ async function cas(key: string, value: { v: number }, expected: number): Promise
 function normalizeConfig(cfg: Config | null, fallback: Config): Config {
   const config = cfg ?? fallback;
   const sec = config.settings?.timeoutSeconds;
+  const awards = normalizeAwards(config.awards);
   if (!Number.isInteger(sec) || (sec as number) < 5 || (sec as number) > 300) {
     return {
       ...config,
+      awards,
       settings: { ...defaultSettings, ...config.settings, timeoutSeconds: defaultSettings.timeoutSeconds },
     };
   }
-  return config;
+  return { ...config, awards };
 }
 
 export async function loadState(): Promise<AppState> {

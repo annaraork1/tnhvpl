@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { formatFor } from "@/lib/engine";
 import type { Fixture } from "@/lib/types";
 import { WinConfetti } from "./Confetti";
 import { useLive } from "./LiveProvider";
@@ -14,6 +15,7 @@ export function LiveScore({ fx, link = true, share = true }: { fx: Fixture; link
   if (!calc || !state) return null;
   const m = calc.ms[fx.id];
   const r = calc.resolved[fx.id];
+  const fmt = formatFor(fx, state.config.settings);
   const tA = team(r.a);
   const tB = team(r.b);
   const s = m.sets[m.cur];
@@ -21,6 +23,7 @@ export function LiveScore({ fx, link = true, share = true }: { fx: Fixture; link
   const winTeam = winSide === "A" ? tA : winSide === "B" ? tB : null;
   const confettiColors = [winTeam?.color, tA?.color, tB?.color, "#f5bc28", "#f5f1e6"].filter((c): c is string => !!c);
   const shareTitle = `${tA?.name ?? r.labelA} vs ${tB?.name ?? r.labelB}`;
+  const formatLine = `Best of ${fmt.bestOf} · sets to ${fmt.targets.join("-")} · win by ${fmt.winBy}${fmt.cap ? ` · cap ${fmt.cap}` : ""}`;
   const head = (
     <div className="sechead">
       <span className="kicker">
@@ -62,9 +65,15 @@ export function LiveScore({ fx, link = true, share = true }: { fx: Fixture; link
             </span>
           )}
           {m.status === "scheduled" && <span>Not started</span>}
+          {m.status === "done" && <span>{formatLine}</span>}
         </div>
         {side("B")}
       </div>
+      {m.status === "scheduled" && (
+        <p className="note" style={{ textAlign: "center" }}>
+          {formatLine}
+        </p>
+      )}
       {m.sets.some((x) => x.a + x.b > 0) && (
         <div className="sethist">
           {m.sets.map((x, i) =>
