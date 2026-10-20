@@ -87,6 +87,26 @@ export interface Config {
   teams: Team[];
   fixtures: Fixture[];
   awards: Awards;
+  /** Squad players for this season (stored per tournament). */
+  players: Player[];
+}
+
+/** Site-wide season registry (not prefixed by tournament key). */
+export interface TournamentMeta {
+  key: string;
+  name: string;
+  short: string;
+  subtitle: string;
+  dates: string;
+  /** Data URL, public path, or absolute URL — used as nav brand logo. */
+  logo: string;
+  createdAt: number;
+}
+
+export interface Registry {
+  v: number;
+  activeKey: string;
+  tournaments: TournamentMeta[];
 }
 
 export type MatchEvent =
@@ -111,6 +131,14 @@ export interface AppState {
   matches: Record<string, MatchDoc>;
   storage: "redis" | "memory";
   serverTime: number;
+  /** Redis / storage key for this season. */
+  tournamentKey: string;
+  /** Season metadata (logo, labels) from the registry. */
+  meta: TournamentMeta;
+  /** True when viewing a season that is not the site-wide active one. */
+  viewingArchive: boolean;
+  /** All seasons (for admin / seasons page). */
+  registry: Registry;
 }
 
 export interface SetState {

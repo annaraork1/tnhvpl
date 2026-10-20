@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { teamForPlayer } from "@/lib/awards";
+import { askConfirm } from "@/lib/confirm";
 import { useLive } from "./LiveProvider";
 
 /** Optional man-of-the-match picker (players from the two teams in this fixture). */
@@ -50,6 +51,7 @@ export function BestPlayerPicker({
   const curTeam = current ? team(current.teamId) : null;
 
   const save = async (playerNo: number | null) => {
+    if (playerNo == null && !askConfirm("Clear the best player for this match?")) return;
     setBusy(true);
     const r = await act("setBestPlayer", { id: matchId, playerNo });
     setBusy(false);

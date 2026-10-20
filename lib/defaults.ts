@@ -12,6 +12,10 @@ export const defaultSettings: Settings = {
   timeoutSeconds: 30,
 };
 
+export function seedPlayers(): Player[] {
+  return structuredClone(seed.players) as Player[];
+}
+
 export function defaultConfig(): Config {
   return {
     v: 0,
@@ -20,7 +24,6 @@ export function defaultConfig(): Config {
     teams: structuredClone(seed.teams),
     fixtures: structuredClone(seed.fixtures) as Config["fixtures"],
     awards: emptyAwards(),
+    players: seedPlayers(),
   };
 }
-
-export const players: Player[] = seed.players as Player[];

@@ -5,6 +5,7 @@ import { AwardsGrid } from "@/components/AwardsGrid";
 import { useLive } from "@/components/LiveProvider";
 import { Loading, PinGate } from "@/components/ui";
 import { AWARD_IDS, AWARD_LABELS, emptyAwards, motmSuggestions, teamForPlayer } from "@/lib/awards";
+import { askConfirm } from "@/lib/confirm";
 import type { AwardId } from "@/lib/types";
 
 export default function AwardsPage() {
@@ -94,6 +95,7 @@ function AwardsEditor() {
   };
 
   const clearAward = async (id: AwardId) => {
+    if (!askConfirm(`Clear the ${AWARD_LABELS[id]} award?`)) return;
     setBusy(true);
     const next = { ...emptyAwards(), ...awards, [id]: null };
     const r = await act("saveAwards", { awards: next });
