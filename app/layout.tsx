@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
 import { LiveProvider } from "@/components/LiveProvider";
 import { Nav } from "@/components/Nav";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "TNHVPL Season 5",
-  description: "Live scores, fixtures and points table for TNH Volleyball Season 5",
+  title: "TNHVPL",
+  description: "Live scores, fixtures and points table for TNH Volleyball",
   manifest: "/manifest.webmanifest",
   icons: { icon: "/icon-192.png", apple: "/icon-192.png" },
 };
@@ -29,10 +30,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <LiveProvider>
-          <Nav />
-          <main className="wrap">{children}</main>
-        </LiveProvider>
+        <Suspense fallback={<main className="wrap"><div className="empty">Loading…</div></main>}>
+          <LiveProvider>
+            <Nav />
+            <main className="wrap">{children}</main>
+          </LiveProvider>
+        </Suspense>
       </body>
     </html>
   );

@@ -21,6 +21,8 @@ Points, tie-breaks and set formats can all be changed from the Admin page.
 | `/match/<id>` | Everyone | Live score for one match (share this link) |
 | `/rules` | Everyone | Match format and points rules (built from the settings) |
 | `/awards` | Everyone / staff | Tournament awards after the Final; admin or scorer can set them |
+| `/seasons` | Everyone | List of all tournament seasons; open or share archive links |
+| `/s/<key>` | Everyone | Shareable link that opens that season (`/?season=<key>`) |
 | `/display` | TV at the venue | Big live score, points table, results and what's next |
 | `/score` | Scorers (PIN) | Pick a match, tap points, timeouts, undo |
 | `/admin` | Organiser (admin PIN) | Points rules, tie-breaks, set formats, team names/owners/colours, dates and times, set teams by hand, reset a match |

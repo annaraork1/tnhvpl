@@ -74,7 +74,25 @@ function play(ev: Record<string, MatchEvent[]>): AppState {
   } as AppState["config"];
   const matches: AppState["matches"] = {};
   for (const [id, e] of Object.entries(ev)) matches[id] = { v: 1, ev: e };
-  return { config, players: [], matches, storage: "memory", serverTime: 0 };
+  return {
+    config,
+    players: [],
+    matches,
+    storage: "memory",
+    serverTime: 0,
+    tournamentKey: "test",
+    meta: {
+      key: "test",
+      name: "Test",
+      short: "T",
+      subtitle: "",
+      dates: "",
+      logo: "/logo.png",
+      createdAt: 0,
+    },
+    viewingArchive: false,
+    registry: { v: 0, activeKey: "test", tournaments: [] },
+  };
 }
 const win = (s: Side, close = false): MatchEvent[] =>
   close

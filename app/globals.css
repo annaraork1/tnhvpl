@@ -179,8 +179,27 @@ table.standings { width: 100%; border-collapse: collapse; font-variant-numeric: 
 .player-pick-meta { display: grid; gap: 2px; min-width: 0; }
 .player-pick-meta b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .player-pick-meta small { color: var(--muted); font-size: 12px; }
+.catalog-list { max-height: 280px; }
+.catalog-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  cursor: default;
+}
+.catalog-row .btn { flex-shrink: 0; }
 .award-current { justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
 .award-current:last-child { border-bottom: 0; }
+
+/* seasons */
+.season-grid { display: grid; gap: 12px; }
+.season-card { display: grid; grid-template-columns: 72px 1fr; gap: 14px; align-items: center; }
+.season-card.active { border-color: var(--gold); }
+.season-logo { width: 72px; height: 72px; border-radius: 16px; object-fit: cover; background: var(--card2); }
+.archive-bar a { color: var(--gold); font-weight: 700; }
+.brand img { border-radius: 10px; object-fit: cover; background: var(--card2); }
+.logo-preview { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; border: 1px solid var(--line); }
 
 /* bracket */
 .bracket { display: grid; gap: 8px; }
@@ -196,7 +215,7 @@ table.standings { width: 100%; border-collapse: collapse; font-variant-numeric: 
 .rules li::marker { color: var(--gold); font-weight: 700; }
 
 /* scorer console */
-.scorer { position: fixed; inset: 0; display: grid; grid-template-rows: auto 1fr auto; background: var(--bg); padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); user-select: none; -webkit-user-select: none; }
+.scorer { position: fixed; inset: 0; z-index: 40; display: grid; grid-template-rows: auto 1fr auto; background: var(--bg); padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); user-select: none; -webkit-user-select: none; }
 .sbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
 .sbar .mid { text-align: center; font-family: var(--display); line-height: 1.1; }
 .sbar .mid b { font-size: 20px; }

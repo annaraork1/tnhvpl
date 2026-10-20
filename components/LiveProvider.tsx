@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { computeAll } from "@/lib/engine";
 import type { AppState, Team } from "@/lib/types";
 
@@ -12,6 +13,9 @@ interface Ctx {
   calc: Computed | null;
   error: string | null;
   updatedAt: number;
+  /** Season key from ?season= or active season. */
+  season: string | null;
+  seasonHref: (path: string) => string;
   refresh: (fresh?: boolean) => Promise<void>;
   act: (
     type: string,
@@ -19,7 +23,6 @@ interface Ctx {
     opts?: { noAccept?: boolean },
   ) => Promise<{ ok: boolean; error?: string; state?: AppState }>;
   accept: (s: AppState) => void;
-  /** While true, background polling results are ignored (the scorer has taps in flight). */
   setHold: (h: boolean) => void;
   team: (id: string | null | undefined) => Team | undefined;
   pin: string;
@@ -57,7 +60,19 @@ async function checkPin(p: string): Promise<{ ok: boolean; role?: StaffRole; err
   }
 }
 
+function withSeason(path: string, season: string | null) {
+  if (!season) return path;
+  const [base, hash] = path.split("#");
+  const [pathname, qs] = base.split("?");
+  const params = new URLSearchParams(qs || "");
+  params.set("season", season);
+  const q = params.toString();
+  return `${pathname}?${q}${hash ? `#${hash}` : ""}`;
+}
+
 export function LiveProvider({ children }: { children: React.ReactNode }) {
+  const searchParams = useSearchParams();
+  const seasonParam = searchParams.get("season");
   const [state, setState] = useState<AppState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState(0);
@@ -67,6 +82,9 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
   const fastUntil = useRef(0);
   const lastServer = useRef(0);
   const hold = useRef(false);
+  const seasonRef = useRef(seasonParam);
+  seasonRef.current = seasonParam;
+
   const setHold = useCallback((h: boolean) => {
     hold.current = h;
   }, []);
@@ -128,7 +146,6 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
 
   const accept = useCallback((s: AppState, fromPoll = false) => {
     if (fromPoll && hold.current) return;
-    // Ignore an older (cached) response that arrives after a newer one.
     if (s.serverTime < lastServer.current) return;
     lastServer.current = s.serverTime;
     setState(s);
@@ -139,7 +156,12 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(
     async (fresh = false) => {
       try {
-        const r = await fetch(fresh ? `/api/state?fresh=${Date.now()}` : "/api/state", { cache: "no-store" });
+        const params = new URLSearchParams();
+        if (fresh) params.set("fresh", String(Date.now()));
+        const s = seasonRef.current;
+        if (s) params.set("season", s);
+        const q = params.toString();
+        const r = await fetch(q ? `/api/state?${q}` : "/api/state", { cache: "no-store" });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         accept(await r.json(), true);
       } catch {
@@ -148,6 +170,15 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
     },
     [accept],
   );
+
+  // Reset poll clock when season query changes.
+  useEffect(() => {
+    lastServer.current = 0;
+    setState(null);
+    void refresh(true);
+    // intentionally only when ?season= changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seasonParam]);
 
   useEffect(() => {
     let alive = true;
@@ -172,15 +203,16 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
   const act = useCallback(
     async (type: string, payload: Record<string, unknown> = {}, opts?: { noAccept?: boolean }) => {
       try {
+        const season = seasonRef.current;
         const r = await fetch("/api/action", {
           method: "POST",
           headers: { "content-type": "application/json", "x-pin": readPin() },
-          body: JSON.stringify({ type, ...payload }),
+          body: JSON.stringify({ type, ...payload, ...(season ? { season } : {}) }),
         });
         const j = await r.json();
         if (!j.ok) return { ok: false, error: j.error ?? "Something went wrong" };
         if (j.state && !opts?.noAccept) accept(j.state);
-        fastUntil.current = Date.now() + 60_000; // skip the edge cache for a minute after any change
+        fastUntil.current = Date.now() + 60_000;
         return { ok: true, state: j.state as AppState };
       } catch {
         return { ok: false, error: "No connection. Your tap was not saved." };
@@ -191,6 +223,8 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
 
   const calc = useMemo(() => (state ? computeAll(state) : null), [state]);
   const team = useCallback((id: string | null | undefined) => state?.config.teams.find((t) => t.id === id), [state]);
+  const season = seasonParam || state?.tournamentKey || null;
+  const seasonHref = useCallback((path: string) => withSeason(path, seasonParam), [seasonParam]);
 
   return (
     <LiveCtx.Provider
@@ -199,6 +233,8 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
         calc,
         error,
         updatedAt,
+        season,
+        seasonHref,
         refresh,
         act,
         accept,
