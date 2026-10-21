@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { formatFor } from "@/lib/engine";
+import { pressureBallForSide } from "@/lib/pressureBall";
 import type { Fixture } from "@/lib/types";
 import { WinConfetti } from "./Confetti";
 import { useLive } from "./LiveProvider";
+import { PressureBallBadge } from "./PressureBallBadge";
 import { ShareMatch } from "./ShareMatch";
 import { TimeoutOverlay } from "./TimeoutOverlay";
 import { Logo, StatusPill, fmtDate } from "./ui";
@@ -37,10 +39,15 @@ export function LiveScore({ fx, link = true, share = true }: { fx: Fixture; link
     const label = id === "A" ? r.labelA : r.labelB;
     const pts = s ? (id === "A" ? s.a : s.b) : 0;
     const won = m.status === "done" && m.winner === id;
+    const pressure =
+      m.status === "live" && s && !m.awaitingNext && !m.timeout
+        ? pressureBallForSide(id, s.a, s.b, s.target, fmt, m.setsA, m.setsB)
+        : null;
     return (
       <div className="side" style={{ ["--tc" as string]: t?.color }}>
         <Logo team={t} size={64} />
         <h3 style={{ color: won ? "var(--gold)" : undefined }}>{t?.name ?? label}</h3>
+        <PressureBallBadge kind={pressure} />
         {m.status === "live" && <div className="bigpts">{pts}</div>}
         <div className="serve">
           {m.status === "live" && !m.awaitingNext && !m.timeout && m.serve === id ? "● Serving" : ""}

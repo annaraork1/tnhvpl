@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 
-function matchUrl(id: string) {
-  if (typeof window === "undefined") return `/match/${id}`;
-  return `${window.location.origin}/match/${id}`;
+function matchUrl(id: string, pathPrefix = "/match") {
+  const path = `${pathPrefix}/${id}`;
+  if (typeof window === "undefined") return path;
+  return `${window.location.origin}${path}`;
 }
 
 /** Share or copy the public spectator link for a match. */
@@ -12,17 +13,20 @@ export function ShareMatch({
   id,
   title,
   className = "btn",
+  pathPrefix = "/match",
 }: {
   id: string;
   title?: string;
   className?: string;
+  /** e.g. `/practice` for practice matches (default `/match`). */
+  pathPrefix?: string;
 }) {
   const [note, setNote] = useState("");
 
   const share = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const url = matchUrl(id);
+    const url = matchUrl(id, pathPrefix);
     const text = title ? `${title} — live score` : "Live match score";
     try {
       if (navigator.share) {

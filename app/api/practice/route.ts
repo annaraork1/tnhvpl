@@ -8,6 +8,7 @@ import {
   deleteCompletedPractice,
   getPractice,
   listCompletedPractices,
+  listLivePractices,
   PracticeError,
   resultFromEvents,
   toPublic,
@@ -32,10 +33,10 @@ function isAdmin(req: Request) {
 
 const isSide = (s: unknown): s is Side => s === "A" || s === "B";
 
-/** List completed practices. */
+/** List live + completed practices (public). */
 export async function GET() {
-  const matches = await listCompletedPractices();
-  return NextResponse.json({ ok: true, matches }, { headers: { "Cache-Control": "no-store" } });
+  const [matches, live] = await Promise.all([listCompletedPractices(), listLivePractices()]);
+  return NextResponse.json({ ok: true, matches, live }, { headers: { "Cache-Control": "no-store" } });
 }
 
 /** Practice mutations (create / score / quick / complete / abandon / delete). */

@@ -61,7 +61,15 @@ export interface PracticeSummary {
   sideBCount: number;
 }
 
+/** Open live-mode practice (draft or in progress) for the public live board. */
+export interface PracticeLiveRef {
+  id: string;
+  createdAt: number;
+}
+
 export interface PracticeIndex {
   v: number;
   matches: PracticeSummary[];
+  /** IDs of open live-scored practices (not yet completed / abandoned). */
+  live?: PracticeLiveRef[];
 }

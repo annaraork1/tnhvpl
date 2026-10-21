@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { derive } from "@/lib/engine";
-import { getPractice, toPublic } from "@/lib/practiceStore";
+import { ensureLiveTracked, getPractice, toPublic } from "@/lib/practiceStore";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +11,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const match = await getPractice(id);
   if (!match) {
     return NextResponse.json({ ok: false, error: "Practice not found" }, { status: 404 });
+  }
+  if (match.mode === "live" && match.status !== "done") {
+    void ensureLiveTracked(match);
   }
   const pub = toPublic(match, { hostToken });
   const state =

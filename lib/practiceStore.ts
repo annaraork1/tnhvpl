@@ -1,15 +1,17 @@
 import { createHash, randomBytes } from "node:crypto";
 import { Redis } from "@upstash/redis";
+import { derive } from "./engine";
 import { resultFromEvents } from "./practiceResult";
 import {
   defaultPracticeFormat,
   type PracticeIndex,
+  type PracticeLiveRef,
   type PracticeMatch,
   type PracticeMatchPublic,
   type PracticePlayer,
   type PracticeSummary,
 } from "./practiceTypes";
-import type { Format } from "./types";
+import type { Format, MatchState } from "./types";
 
 export { defaultPracticeFormat, resultFromEvents };
 
@@ -101,7 +103,34 @@ export function newPracticeId(): string {
 }
 
 function emptyIndex(): PracticeIndex {
-  return { v: 0, matches: [] };
+  return { v: 0, matches: [], live: [] };
+}
+
+function liveList(idx: PracticeIndex): PracticeLiveRef[] {
+  return Array.isArray(idx.live) ? idx.live : [];
+}
+
+async function trackLivePractice(id: string, createdAt: number) {
+  await updateDoc(PRACTICE_INDEX_KEY, emptyIndex, (idx) => {
+    const live = liveList(idx).filter((x) => x.id !== id);
+    live.unshift({ id, createdAt });
+    return { ...idx, live: live.slice(0, 40) };
+  });
+}
+
+async function untrackLivePractice(id: string) {
+  await updateDoc(PRACTICE_INDEX_KEY, emptyIndex, (idx) => ({
+    ...idx,
+    live: liveList(idx).filter((x) => x.id !== id),
+  }));
+}
+
+/** Re-index an open live practice (backfill matches created before the live board existed). */
+export async function ensureLiveTracked(m: PracticeMatch) {
+  if (m.mode !== "live" || m.status === "done") return;
+  const [idx] = await readRaw<PracticeIndex>([PRACTICE_INDEX_KEY]);
+  if (liveList(idx ?? emptyIndex()).some((x) => x.id === m.id)) return;
+  await trackLivePractice(m.id, m.createdAt);
 }
 
 function sanitizePlayers(list: unknown): PracticePlayer[] {
@@ -153,6 +182,39 @@ export async function listCompletedPractices(): Promise<PracticeSummary[]> {
   return [...list].sort((a, b) => b.completedAt - a.completedAt);
 }
 
+export type PracticeLiveBoardItem = {
+  match: PracticeMatchPublic;
+  state: MatchState;
+};
+
+/** Public live board: open live-mode practices (draft + in progress). */
+export async function listLivePractices(): Promise<PracticeLiveBoardItem[]> {
+  const [idx] = await readRaw<PracticeIndex>([PRACTICE_INDEX_KEY]);
+  const refs = liveList(idx ?? emptyIndex());
+  if (!refs.length) return [];
+  const docs = await readRaw<PracticeMatch>(refs.map((r) => practiceMatchKey(r.id)));
+  const out: PracticeLiveBoardItem[] = [];
+  const stale: string[] = [];
+  for (let i = 0; i < refs.length; i++) {
+    const m = docs[i];
+    if (!m || m.mode !== "live" || m.status === "done") {
+      stale.push(refs[i].id);
+      continue;
+    }
+    out.push({
+      match: toPublic(m),
+      state: derive(m.ev, m.format, m.timeoutSeconds),
+    });
+  }
+  if (stale.length) {
+    void updateDoc(PRACTICE_INDEX_KEY, emptyIndex, (cur) => ({
+      ...cur,
+      live: liveList(cur).filter((x) => !stale.includes(x.id)),
+    })).catch(() => {});
+  }
+  return out.sort((a, b) => b.match.createdAt - a.match.createdAt);
+}
+
 export async function getPractice(id: string): Promise<PracticeMatch | null> {
   if (!id || !/^p_[a-z0-9]+_[a-f0-9]+$/i.test(id)) return null;
   const [m] = await readRaw<PracticeMatch>([practiceMatchKey(id)]);
@@ -192,6 +254,7 @@ export async function createPractice(input: {
     ev: [],
   };
   await updateDoc(practiceMatchKey(id), () => match, () => ({ ...match, v: 0 }));
+  if (match.mode === "live") await trackLivePractice(id, match.createdAt);
   return { match, hostToken };
 }
 
@@ -250,7 +313,11 @@ export async function completePractice(patch: PracticeMatch): Promise<PracticeMa
   await updateDoc(PRACTICE_INDEX_KEY, emptyIndex, (idx) => {
     const matches = idx.matches.filter((x) => x.id !== saved.id);
     matches.unshift(summaryFrom(saved));
-    return { ...idx, matches: matches.slice(0, 200) };
+    return {
+      ...idx,
+      matches: matches.slice(0, 200),
+      live: liveList(idx).filter((x) => x.id !== saved.id),
+    };
   });
   return saved;
 }
@@ -260,6 +327,7 @@ export async function abandonPractice(id: string): Promise<void> {
   if (!m) throw new PracticeError("Practice not found");
   if (m.status === "done") throw new PracticeError("Completed practices cannot be abandoned — delete instead");
   await delKey(practiceMatchKey(id));
+  await untrackLivePractice(id);
 }
 
 export async function deleteCompletedPractice(id: string): Promise<void> {

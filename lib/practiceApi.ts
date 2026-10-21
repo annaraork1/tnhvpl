@@ -4,6 +4,11 @@ import type { MatchState } from "./types";
 type Ok<T> = { ok: true } & T;
 type Fail = { ok: false; error: string };
 
+export type PracticeLiveBoardItem = {
+  match: PracticeMatchPublic;
+  state: MatchState;
+};
+
 async function parse<T>(res: Response): Promise<Ok<T> | Fail> {
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   if (!res.ok || data.ok === false) {
@@ -12,9 +17,16 @@ async function parse<T>(res: Response): Promise<Ok<T> | Fail> {
   return { ok: true, ...(data as T) };
 }
 
-export async function fetchPracticeHistory() {
+export async function fetchPracticeBoard() {
   const res = await fetch("/api/practice", { cache: "no-store" });
-  return parse<{ matches: PracticeSummary[] }>(res);
+  return parse<{ matches: PracticeSummary[]; live: PracticeLiveBoardItem[] }>(res);
+}
+
+/** @deprecated use fetchPracticeBoard */
+export async function fetchPracticeHistory() {
+  const r = await fetchPracticeBoard();
+  if (!r.ok) return r;
+  return { ok: true as const, matches: r.matches };
 }
 
 export async function fetchPractice(id: string, hostToken: string | null) {

@@ -1,30 +1,47 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { ClientTime } from "@/components/ClientTime";
+import { PracticeLiveScore } from "@/components/PracticeLiveScore";
 import { Loading } from "@/components/ui";
-import { fetchPracticeHistory } from "@/lib/practiceApi";
-import { listOpenHostIds } from "@/lib/practiceHost";
+import { fetchPracticeBoard, type PracticeLiveBoardItem } from "@/lib/practiceApi";
+import { getHostToken, listOpenHostIds } from "@/lib/practiceHost";
 import type { PracticeSummary } from "@/lib/practiceTypes";
 
 export default function PracticeHome() {
   const [matches, setMatches] = useState<PracticeSummary[] | null>(null);
+  const [live, setLive] = useState<PracticeLiveBoardItem[]>([]);
   const [openIds, setOpenIds] = useState<string[]>([]);
   const [error, setError] = useState("");
+  const [updatedAt, setUpdatedAt] = useState(0);
 
-  useEffect(() => {
+  const reload = useCallback(async () => {
     setOpenIds(listOpenHostIds());
-    fetchPracticeHistory().then((r) => {
-      if (!r.ok) {
-        setError(r.error);
-        setMatches([]);
-        return;
-      }
-      setMatches(r.matches);
-    });
+    const r = await fetchPracticeBoard();
+    if (!r.ok) {
+      setError(r.error);
+      setMatches((m) => m ?? []);
+      return;
+    }
+    setMatches(r.matches);
+    setLive(r.live ?? []);
+    setUpdatedAt(Date.now());
+    setError("");
   }, []);
 
+  useEffect(() => {
+    reload();
+    const t = setInterval(reload, 3000);
+    return () => clearInterval(t);
+  }, [reload]);
+
   if (!matches) return <Loading />;
+
+  const hostOpen = openIds.filter((id) => {
+    const row = live.find((x) => x.match.id === id);
+    return row && Boolean(getHostToken(id));
+  });
 
   return (
     <div className="stack">
@@ -35,24 +52,51 @@ export default function PracticeHome() {
         </Link>
       </div>
       <p className="note">
-        Practice matches are stored separately from tournaments. Only completed matches appear here;
-        abandon a live match and it is not recorded.
+        Practice matches are separate from tournaments. Anyone can watch live practices here; only the host (or
+        public scoring, if enabled) can score. Abandoned matches are not kept in history.
       </p>
       {error && <p className="error">{error}</p>}
 
-      {openIds.length > 0 && (
+      {live.length > 0 ? (
+        <section className="stack">
+          <h2>Live now</h2>
+          {live.map(({ match, state }) => (
+            <PracticeLiveScore
+              key={match.id}
+              match={match}
+              state={state}
+              updatedAt={updatedAt}
+              serverTime={Date.now()}
+            />
+          ))}
+        </section>
+      ) : (
+        <section className="card stack">
+          <h2>Live now</h2>
+          <p className="muted" style={{ margin: 0 }}>
+            No practice match in progress. Start one to appear here for everyone.
+          </p>
+        </section>
+      )}
+
+      {hostOpen.length > 0 && (
         <section className="card stack">
           <h2>Your open practices</h2>
           <p className="muted" style={{ margin: 0 }}>
-            Matches this browser created that may still be in progress.
+            You are the host — open to score.
           </p>
           <div className="mlist">
-            {openIds.map((id) => (
-              <Link key={id} className="card row" href={`/practice/${id}`} style={{ padding: 12 }}>
-                <b>{id}</b>
-                <span className="muted">Continue</span>
-              </Link>
-            ))}
+            {hostOpen.map((id) => {
+              const row = live.find((x) => x.match.id === id);
+              return (
+                <Link key={id} className="card row" href={`/practice/${id}`} style={{ padding: 12 }}>
+                  <b>
+                    {row ? `${row.match.labelA} vs ${row.match.labelB}` : id}
+                  </b>
+                  <span className="muted">Score</span>
+                </Link>
+              );
+            })}
           </div>
         </section>
       )}
@@ -70,7 +114,7 @@ export default function PracticeHome() {
                 <span className="muted">{m.mode === "live" ? "Live" : "Quick"}</span>
               </span>
               <span className="muted" style={{ fontSize: 13 }}>
-                {new Date(m.completedAt).toLocaleString()}
+                <ClientTime value={m.completedAt} />
                 {m.winner ? ` · Winner: ${m.winner === "A" ? m.labelA : m.labelB}` : ""}
               </span>
             </Link>

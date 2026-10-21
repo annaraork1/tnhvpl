@@ -6,9 +6,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BestPlayerPicker } from "@/components/BestPlayerPicker";
 import { WinConfetti } from "@/components/Confetti";
 import { useLive } from "@/components/LiveProvider";
+import { PressureBallBadge } from "@/components/PressureBallBadge";
 import { TimeoutOverlay } from "@/components/TimeoutOverlay";
+import { WhistleButton } from "@/components/WhistleButton";
 import { Loading, Logo, PinGate } from "@/components/ui";
 import { DEFAULT_TIMEOUT_SECONDS, derive, formatFor, other } from "@/lib/engine";
+import { pressureBallForSide } from "@/lib/pressureBall";
 import type { MatchEvent, Side } from "@/lib/types";
 
 type Op = { kind: "ev"; e: MatchEvent } | { kind: "undo" };
@@ -150,6 +153,10 @@ function Console() {
     const pts = s === "A" ? set.a : set.b;
     const sets = s === "A" ? m.setsA : m.setsB;
     const blocked = m.status !== "live" || m.awaitingNext || inTimeout;
+    const pressure =
+      m.status === "live" && !m.awaitingNext && !inTimeout
+        ? pressureBallForSide(s, set.a, set.b, set.target, fmt, m.setsA, m.setsB)
+        : null;
     return (
       <button
         className="pad"
@@ -161,6 +168,7 @@ function Console() {
         <span className="pteam">
           <Logo team={T[s]} size={48} />
           <span className="pname">{name(s)}</span>
+          <PressureBallBadge kind={pressure} />
         </span>
         <span className="ppts">{pts}</span>
         <span className="pset">
@@ -204,9 +212,12 @@ function Console() {
             {pending.length ? " · saving…" : ""}
           </div>
         </div>
-        <button className="btn ghost" onClick={() => setFlip((f) => !f)} aria-label="Swap sides on screen">
-          ⇄
-        </button>
+        <div className="sbar-actions">
+          <WhistleButton />
+          <button className="btn ghost" onClick={() => setFlip((f) => !f)} aria-label="Swap sides on screen">
+            ⇄
+          </button>
+        </div>
       </div>
       <div className="pads">
         {pad(left)}

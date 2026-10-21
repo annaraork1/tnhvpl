@@ -3,14 +3,22 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { ClientTime } from "@/components/ClientTime";
+import { fireConfetti, WinConfetti } from "@/components/Confetti";
+import { PracticeLiveScore } from "@/components/PracticeLiveScore";
+import { PressureBallBadge } from "@/components/PressureBallBadge";
+import { ShareMatch } from "@/components/ShareMatch";
 import { TimeoutOverlay } from "@/components/TimeoutOverlay";
+import { WhistleButton } from "@/components/WhistleButton";
 import { Loading } from "@/components/ui";
 import { useLive } from "@/components/LiveProvider";
 import { askConfirm } from "@/lib/confirm";
 import { derive, other } from "@/lib/engine";
+import { formatEventLog } from "@/lib/formatEvents";
 import { fetchPractice, practiceAct } from "@/lib/practiceApi";
 import { clearHostToken, getHostToken } from "@/lib/practiceHost";
 import type { PracticeMatchPublic } from "@/lib/practiceTypes";
+import { pressureBallForSide } from "@/lib/pressureBall";
 import type { MatchState, Side } from "@/lib/types";
 
 const COLOR_A = "#4CC9F0";
@@ -54,7 +62,7 @@ export default function PracticeMatchPage() {
   const [flip, setFlip] = useState(false);
   const [adminPin, setAdminPin] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
-  const [updatedAt, setUpdatedAt] = useState(Date.now());
+  const [updatedAt, setUpdatedAt] = useState(0);
 
   const reload = useCallback(async () => {
     const token = getHostToken(id);
@@ -99,6 +107,7 @@ export default function PracticeMatchPage() {
 
   const act = async (body: Record<string, unknown>, pin?: string) => {
     setBusy(true);
+    const prev = state;
     const r = await practiceAct({ ...body, id, hostToken }, { pin });
     setBusy(false);
     if (!r.ok) {
@@ -110,6 +119,10 @@ export default function PracticeMatchPage() {
     if (r.state) {
       setState(r.state);
       setUpdatedAt(Date.now());
+      // Match-over unmounts the scorer before WinConfetti can see the transition.
+      if (prev && r.state.status === "done" && prev.status !== "done") {
+        fireConfetti({ intensity: "match", colors: [COLOR_A, COLOR_B, "#f5bc28", "#f5f1e6"] });
+      }
     } else if (r.match?.status === "done") setState(null);
     if (navigator.vibrate) navigator.vibrate(body.action === "undo" ? [20, 40, 20] : 25);
     return true;
@@ -135,6 +148,8 @@ export default function PracticeMatchPage() {
   const isAdmin = role === "admin";
   const color = (s: Side) => (s === "A" ? COLOR_A : COLOR_B);
 
+  const confettiColors = [COLOR_A, COLOR_B, "#f5bc28", "#f5f1e6"];
+
   if (match.status === "done") {
     return (
       <div className="wrap stack">
@@ -149,8 +164,13 @@ export default function PracticeMatchPage() {
             {match.labelA} {match.setsWon?.a ?? 0}–{match.setsWon?.b ?? 0} {match.labelB}
           </h2>
           <p className="muted" style={{ margin: 0 }}>
-            {match.mode === "live" ? "Live scored" : "Quick result"} ·{" "}
-            {match.completedAt ? new Date(match.completedAt).toLocaleString() : ""}
+            {match.mode === "live" ? "Live scored" : "Quick result"}
+            {match.completedAt ? (
+              <>
+                {" · "}
+                <ClientTime value={match.completedAt} />
+              </>
+            ) : null}
             {match.winner ? ` · Winner: ${match.winner === "A" ? match.labelA : match.labelB}` : ""}
           </p>
           {match.setScores && match.setScores.length > 0 && (
@@ -186,9 +206,18 @@ export default function PracticeMatchPage() {
           {match.mode === "live" && match.ev.length > 0 && (
             <details>
               <summary>Event log ({match.ev.length})</summary>
-              <pre style={{ fontSize: 12, overflow: "auto", maxHeight: 200 }}>
-                {JSON.stringify(match.ev, null, 2)}
-              </pre>
+              <ol className="event-log">
+                {formatEventLog(match.ev, {
+                  labelA: match.labelA,
+                  labelB: match.labelB,
+                  format: match.format,
+                }).map((line) => (
+                  <li key={line.n}>
+                    <span className="event-log-text">{line.text}</span>
+                    {line.time ? <span className="event-log-time">{line.time}</span> : null}
+                  </li>
+                ))}
+              </ol>
             </details>
           )}
         </section>
@@ -276,6 +305,34 @@ export default function PracticeMatchPage() {
 
   const undo = () => score("undo");
 
+  // Spectators get the same read-only live board as tournament matches.
+  if (!canScore) {
+    return (
+      <div className="wrap stack">
+        <div className="sechead">
+          <h1>Practice</h1>
+          <Link className="btn ghost" href="/practice">
+            ← Back to practice
+          </Link>
+        </div>
+        <PracticeLiveScore
+          match={match}
+          state={m}
+          link={false}
+          share
+          updatedAt={updatedAt}
+          serverTime={Date.now()}
+        />
+        <p className="note">
+          Watching live
+          {match.allowPublicScore
+            ? " — public scoring is on for this match."
+            : " — only the host can score."}
+        </p>
+      </div>
+    );
+  }
+
   if (m.status === "scheduled") {
     return (
       <div className="wrap">
@@ -344,6 +401,10 @@ export default function PracticeMatchPage() {
     const pts = s === "A" ? set.a : set.b;
     const sets = s === "A" ? m.setsA : m.setsB;
     const blocked = !canScore || m.status !== "live" || m.awaitingNext || inTimeout || busy;
+    const pressure =
+      m.status === "live" && !m.awaitingNext && !inTimeout
+        ? pressureBallForSide(s, set.a, set.b, set.target, fmt, m.setsA, m.setsB)
+        : null;
     return (
       <button
         className="pad"
@@ -355,6 +416,7 @@ export default function PracticeMatchPage() {
         <span className="pteam">
           <SideMark side={s} label={name(s)} size={48} />
           <span className="pname">{name(s)}</span>
+          <PressureBallBadge kind={pressure} />
         </span>
         <span className="ppts">{pts}</span>
         <span className="pset">
@@ -380,6 +442,7 @@ export default function PracticeMatchPage() {
 
   return (
     <div className="scorer">
+      <WinConfetti matchKey={id} m={m} colors={confettiColors} />
       <div className="sbar">
         <Link href="/practice" className="btn ghost" aria-label="Back to practice">
           ←
@@ -394,9 +457,18 @@ export default function PracticeMatchPage() {
             {!canScore ? " · view only" : ""}
           </div>
         </div>
-        <button className="btn ghost" type="button" onClick={() => setFlip((f) => !f)} aria-label="Swap sides on screen">
-          ⇄
-        </button>
+        <div className="sbar-actions">
+          <ShareMatch
+            id={id}
+            title={`${match.labelA} vs ${match.labelB}`}
+            pathPrefix="/practice"
+            className="btn ghost"
+          />
+          <WhistleButton />
+          <button className="btn ghost" type="button" onClick={() => setFlip((f) => !f)} aria-label="Swap sides on screen">
+            ⇄
+          </button>
+        </div>
       </div>
 
       <div className="pads">
