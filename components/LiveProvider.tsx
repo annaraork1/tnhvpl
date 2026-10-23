@@ -6,7 +6,7 @@ import { computeAll } from "@/lib/engine";
 import type { AppState, Team } from "@/lib/types";
 
 type Computed = ReturnType<typeof computeAll>;
-export type StaffRole = "admin" | "scorer";
+export type StaffRole = "admin" | "scorer" | "auctioneer" | "owner";
 
 interface Ctx {
   state: AppState | null;
@@ -31,14 +31,25 @@ interface Ctx {
   team: (id: string | null | undefined) => Team | undefined;
   pin: string;
   role: StaffRole | null;
+  /** Set when role === "owner". */
+  ownerTeamId: string | null;
   roleReady: boolean;
   setPin: (p: string) => void;
-  login: (pin: string) => Promise<{ ok: boolean; role?: StaffRole; error?: string }>;
+  login: (
+    pin: string,
+    opts?: { teamId?: string },
+  ) => Promise<{ ok: boolean; role?: StaffRole; teamId?: string; error?: string }>;
   logout: () => void;
 }
 
 const LiveCtx = createContext<Ctx | null>(null);
 const PIN_KEY = "tnhvpl-pin";
+const OWNER_TEAM_KEY = "tnhvpl-owner-team";
+
+const STAFF_ROLES: StaffRole[] = ["admin", "scorer", "auctioneer", "owner"];
+function asStaffRole(r: unknown): StaffRole | null {
+  return typeof r === "string" && (STAFF_ROLES as string[]).includes(r) ? (r as StaffRole) : null;
+}
 
 /** Monotonic write watermark — match CAS `v` only rises on successful writes. */
 function matchesRevision(s: AppState): number {
@@ -55,19 +66,34 @@ function readPin() {
   }
 }
 
-async function checkPin(p: string): Promise<{ ok: boolean; role?: StaffRole; error?: string }> {
+async function checkPin(
+  p: string,
+  opts?: { teamId?: string; season?: string | null },
+): Promise<{ ok: boolean; role?: StaffRole; teamId?: string; error?: string }> {
   try {
     const r = await fetch("/api/action", {
       method: "POST",
       headers: { "content-type": "application/json", "x-pin": p },
-      body: JSON.stringify({ type: "checkPin" }),
+      body: JSON.stringify({
+        type: "checkPin",
+        ...(opts?.teamId ? { teamId: opts.teamId } : {}),
+        ...(opts?.season ? { season: opts.season } : {}),
+      }),
     }).then((x) => x.json());
     if (!r.ok) return { ok: false, error: r.error ?? "Wrong PIN" };
-    const role = r.role === "admin" || r.role === "scorer" ? (r.role as StaffRole) : null;
+    const role = asStaffRole(r.role);
     if (!role) return { ok: false, error: "Wrong PIN" };
-    return { ok: true, role };
+    return { ok: true, role, teamId: typeof r.teamId === "string" ? r.teamId : undefined };
   } catch {
     return { ok: false, error: "No connection" };
+  }
+}
+
+function readOwnerTeam() {
+  try {
+    return localStorage.getItem(OWNER_TEAM_KEY) ?? "";
+  } catch {
+    return "";
   }
 }
 
@@ -91,7 +117,9 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
   const [saving, setSaving] = useState(0);
   const [pin, setPinState] = useState("");
   const [role, setRole] = useState<StaffRole | null>(null);
+  const [ownerTeamId, setOwnerTeamId] = useState<string | null>(null);
   const [roleReady, setRoleReady] = useState(false);
+  const ownerTeamRef = useRef<string | null>(null);
   const fastUntil = useRef(0);
   const lastServer = useRef(0);
   const lastRev = useRef(0);
@@ -112,25 +140,39 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
     } catch {}
     if (!p) {
       setRole(null);
+      setOwnerTeamId(null);
+      ownerTeamRef.current = null;
+      try {
+        localStorage.removeItem(OWNER_TEAM_KEY);
+      } catch {}
       setRoleReady(true);
     }
   }, []);
 
   const login = useCallback(
-    async (raw: string) => {
+    async (raw: string, opts?: { teamId?: string }) => {
       const p = raw.trim();
       if (!p) return { ok: false, error: "Enter a PIN" };
-      const r = await checkPin(p);
+      const r = await checkPin(p, { teamId: opts?.teamId, season: seasonRef.current });
       if (!r.ok || !r.role) {
         setPin("");
         setRole(null);
+        setOwnerTeamId(null);
+        ownerTeamRef.current = null;
         setRoleReady(true);
         return { ok: false, error: r.error ?? "Wrong PIN" };
       }
       setPin(p);
       setRole(r.role);
+      const tid = r.role === "owner" ? r.teamId || opts?.teamId || null : null;
+      setOwnerTeamId(tid);
+      ownerTeamRef.current = tid;
+      try {
+        if (tid) localStorage.setItem(OWNER_TEAM_KEY, tid);
+        else localStorage.removeItem(OWNER_TEAM_KEY);
+      } catch {}
       setRoleReady(true);
-      return { ok: true, role: r.role };
+      return { ok: true, role: r.role, teamId: tid ?? undefined };
     },
     [setPin],
   );
@@ -141,19 +183,30 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const stored = readPin();
+    const storedTeam = readOwnerTeam();
     if (!stored) {
       setRoleReady(true);
       return;
     }
     setPinState(stored);
-    void checkPin(stored).then((r) => {
-      if (r.ok && r.role) setRole(r.role);
-      else {
+    void checkPin(stored, {
+      teamId: storedTeam || undefined,
+      season: seasonRef.current,
+    }).then((r) => {
+      if (r.ok && r.role) {
+        setRole(r.role);
+        const tid = r.role === "owner" ? r.teamId || storedTeam || null : null;
+        setOwnerTeamId(tid);
+        ownerTeamRef.current = tid;
+      } else {
         try {
           localStorage.removeItem(PIN_KEY);
+          localStorage.removeItem(OWNER_TEAM_KEY);
         } catch {}
         setPinState("");
         setRole(null);
+        setOwnerTeamId(null);
+        ownerTeamRef.current = null;
       }
       setRoleReady(true);
     });
@@ -235,10 +288,16 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
       if (trackSave) setSaving((n) => n + 1);
       try {
         const season = seasonRef.current;
+        const ot = ownerTeamRef.current;
         const r = await fetch("/api/action", {
           method: "POST",
           headers: { "content-type": "application/json", "x-pin": readPin() },
-          body: JSON.stringify({ type, ...payload, ...(season ? { season } : {}) }),
+          body: JSON.stringify({
+            type,
+            ...payload,
+            ...(season ? { season } : {}),
+            ...(ot && !payload.teamId ? { teamId: ot } : {}),
+          }),
         });
         const j = await r.json();
         if (!j.ok) return { ok: false, error: j.error ?? "Something went wrong" };
@@ -277,6 +336,7 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
         team,
         pin,
         role,
+        ownerTeamId,
         roleReady,
         setPin,
         login,

@@ -51,6 +51,7 @@ async function main() {
     dates: "Local test",
     mode: "clone",
     cloneFrom: "tnhvpl-s5",
+    cloneStyle: "archive",
   });
   await act("setActiveTournament", { key: SEASON });
 

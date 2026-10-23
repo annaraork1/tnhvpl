@@ -25,7 +25,13 @@ Points, tie-breaks and set formats can all be changed from the Admin page.
 | `/s/<key>` | Everyone | Shareable link that opens that season (`/?season=<key>`) |
 | `/display` | TV at the venue | Big live score, points table, results and what's next |
 | `/score` | Scorers (PIN) | Pick a match, tap points, timeouts, undo |
-| `/admin` | Organiser (admin PIN) | Points rules, tie-breaks, set formats, team names/owners/colours, dates and times, set teams by hand, reset a match |
+| `/admin` | Organiser (admin PIN) | Season stages, registration, auction settings, owner PINs, fixtures generator, scoring rules |
+| `/register` | Public | Player sign-up while registration is open |
+| `/admin/registrations` | Admin | Review / import / lock registrations |
+| `/auction/console` | Auctioneer / admin | Live draw, bids, sold/unsold |
+| `/auction/projector` | Auctioneer / admin | Full-screen player card for the room |
+| `/auction/board` | Everyone | Live purse board |
+| `/auction/owner` | Team owner PIN | Bid from phone |
 
 Pages refresh themselves every 3 seconds, so nobody has to reload.
 
@@ -43,6 +49,7 @@ Pages refresh themselves every 3 seconds, so nobody has to reload.
 4. **Set the PINs.** Settings → Environment Variables:
    - `ADMIN_PIN`: for you (organiser). Pick something only you know.
    - `SCORER_PIN`: for the people scoring on court.
+   - `AUCTIONEER_PIN`: for the auction console / projector (admin PIN also works). Owner PINs are set per team in Admin.
 5. **Redeploy** (Deployments → ⋯ → Redeploy) so the new variables take effect.
 6. Open the site. If you see an orange "Demo mode" bar, the database isn't connected yet; recheck step 3 and redeploy.
 
@@ -76,7 +83,7 @@ The table always recalculates from the scored rallies, so a rule change applies 
 
 ```bash
 npm install
-npm run dev        # http://localhost:3000  (dev PINs: admin 1234, scorer 1111)
+npm run dev        # http://localhost:3000  (dev PINs: admin 1234, scorer 1111, auctioneer 2222)
 npm test           # scoring engine tests
 ```
 
@@ -90,10 +97,29 @@ Spectator pages share one cached copy of the scores for 2 seconds at Vercel's ed
 
 The app shows player names, skill level and photos only: no phone numbers, tower numbers, ages or auction prices. Anyone with the link can see it. To hide photos, untick **Show player photos** on the Admin page.
 
+## Season workflow (Registration → Auction → Fixtures → Matches)
+
+New seasons (blank or clone from S5) start at **registration**:
+
+1. Open public `/register`, or import the Google Form CSV on `/admin/registrations`.
+2. Approve / exclude rows, set owner PINs, then **Lock → Auction** (assigns player numbers).
+3. Run the auction on `/auction/console` with projector + owner phones; **Finish auction** writes squads.
+4. **Generate fixtures** on Admin (rest-optimised), save → **Matches** stage; score as before.
+
+Legacy seasons without a `stage` field behave as **Matches** (unchanged). Private fields (phone, tower, age, email) never appear in `/api/state`. See `docs/season-workflow/`.
+
+### Match-day auction checklist
+
+1. Set `AUCTIONEER_PIN` and each team’s owner PIN in Admin.
+2. Open `/auction/projector` on the room laptop (auctioneer/admin login), `/auction/board` on the TV if useful.
+3. Owners open `/auction/owner` on their phones and log in as Owner.
+4. Auctioneer uses `/auction/console`: Draw → Reveal → bids → SOLD/UNSOLD.
+5. After all sold: Finish auction → generate fixtures → score.
+
 ## Next season
 
-- Teams, players and fixtures come from `lib/seed.json`; photos are in `public/players/`, logos in `public/logos/`.
-- To start a new tournament on the same database, set `TOURNAMENT_KEY` (e.g. `tnhvpl-s6`) or use **Reset everything** on the Admin page.
+- Clone from `tnhvpl-s5` in Admin (keeps team shells, clears players/fixtures, starts at registration).
+- Seed data for the original S5 archive still lives in `lib/seed.json` / `public/players/`.
 
 ## How it works
 

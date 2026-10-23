@@ -1,5 +1,6 @@
 import { emptyAwards } from "./awards";
 import seed from "./seed.json";
+import { season5WorkflowFields } from "./season";
 import type { Config, Player, Settings } from "./types";
 
 /** Season 5 rules: league best of 3 at 21-21-15; playoffs best of 3 at 21-21-25; 2 points per win, 0 per loss. */
@@ -17,13 +18,15 @@ export function seedPlayers(): Player[] {
 }
 
 export function defaultConfig(): Config {
+  const teams = structuredClone(seed.teams) as Config["teams"];
   return {
     v: 0,
     tournament: seed.tournament,
     settings: structuredClone(defaultSettings),
-    teams: structuredClone(seed.teams),
+    teams,
     fixtures: structuredClone(seed.fixtures) as Config["fixtures"],
     awards: emptyAwards(),
     players: seedPlayers(),
+    ...season5WorkflowFields(teams.map((t) => t.id)),
   };
 }

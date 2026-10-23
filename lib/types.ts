@@ -15,10 +15,141 @@ export interface Team {
 
 export interface Player {
   no: number;
+  /** Stable id (e.g. p_…); legacy players without id are treated as "p" + no. */
+  id?: string;
   name: string;
   skill: string;
   photo: string | null;
   team?: string;
+}
+
+export type SeasonStage = "registration" | "auction" | "fixtures" | "matches" | "completed";
+
+export interface StageLogEntry {
+  at: number;
+  from: SeasonStage;
+  to: SeasonStage;
+  by: string;
+  note?: string;
+}
+
+export interface PlayerPrivate {
+  id: string;
+  phone: string;
+  tower: string;
+  age: string;
+  email?: string;
+  available?: "Yes" | "No" | "";
+  contribution?: string;
+  notes?: string;
+  /** Set when under-age registration includes guardian consent. */
+  guardianName?: string;
+  guardianPhone?: string;
+  source: "signup" | "import" | "admin";
+  sourceRow?: number;
+  photoRef?: string;
+}
+
+export interface RegistrationEntry {
+  id: string;
+  createdAt: number;
+  status: "pending" | "approved" | "rejected" | "excluded";
+  excludeReason?: string;
+  dupOf?: string;
+  name: string;
+  skill: "Beginner" | "Intermediate" | "Advanced";
+  photo: string | null;
+  priv: Omit<PlayerPrivate, "id">;
+  guardianConsent?: boolean;
+  consentAt?: number;
+}
+
+export interface RegistrationSettings {
+  open: boolean;
+  closesAt?: number;
+  consentText: string;
+  requirePhoto: boolean;
+  minAge?: number;
+  guardianConsentUnder?: number;
+  skillLevels: string[];
+  numbering: "form-order" | "random" | "by-skill";
+  /** Saved column mapping for CSV/XLSX import (header → field). */
+  columnMap?: Record<string, string>;
+}
+
+export interface AuctionSettings {
+  purse: number;
+  minPlayers: number;
+  maxPlayers?: number;
+  ownerCountsInSquad: boolean;
+  basePriceBySkill: Record<string, number>;
+  increments: { upTo: number | null; step: number }[];
+  capUntilLeftover: boolean;
+  timerSeconds: number;
+  antiSnipeSeconds: number;
+  autoSellOnTimer: boolean;
+  rebid: { baseMultiplier: number; maxRounds: number | null; floorPrice?: number };
+  finalUnsold: "keep-rebidding" | "assign-by-draw" | "leave-unsold";
+  drawOrder: "random" | "sequential" | "by-skill";
+  showPricesPublic: boolean;
+}
+
+export type AuctionEvent =
+  | { k: "start"; t: number; by: string }
+  | { k: "draw"; no: number; round: number; t: number; by: string }
+  | { k: "reveal"; t: number }
+  | { k: "bid"; no: number; teamId: string; amount: number; by: "owner" | "auctioneer"; t: number }
+  | { k: "sold"; no: number; t: number; by: string }
+  | { k: "unsold"; no: number; t: number; by: string }
+  | {
+      k: "fix";
+      no: number;
+      to: { status: "sold"; teamId: string; amount: number } | { status: "unsold" } | { status: "pool" };
+      t: number;
+      by: string;
+    }
+  | { k: "nextRound"; t: number; by: string }
+  | { k: "pause" | "resume"; t: number; by: string }
+  | { k: "penalty"; teamId: string; no: number; t: number; by: string };
+
+export interface AuctionDoc {
+  v: number;
+  ev: AuctionEvent[];
+  startedAt?: number;
+  completedAt?: number;
+}
+
+export interface FixtureGenDay {
+  date: string;
+  label: string;
+  start: string;
+  end: string;
+}
+
+export interface FixtureGenSettings {
+  days: FixtureGenDay[];
+  leagueSlotMinutes: number;
+  playoffSlotMinutes: number;
+  breakBeforePlayoffsMinutes: number;
+  playoffFormat: "qualifier" | "semis" | "final" | "none";
+  roundRobin: "single" | "double";
+  teamOrder: string[];
+}
+
+export interface PrivateDoc {
+  v: number;
+  players: Record<string, PlayerPrivate>;
+}
+
+export interface OwnersDoc {
+  v: number;
+  salt: string;
+  teams: Record<string, { pinHash: string; updatedAt: number }>;
+}
+
+export interface RegIndexDoc {
+  v: number;
+  ids: string[];
 }
 
 export interface Fixture {
@@ -89,6 +220,12 @@ export interface Config {
   awards: Awards;
   /** Squad players for this season (stored per tournament). */
   players: Player[];
+  /** Workflow stage; missing ⇒ treat as "matches" for legacy seasons. */
+  stage?: SeasonStage;
+  stageLog?: StageLogEntry[];
+  registration?: RegistrationSettings;
+  auction?: AuctionSettings;
+  fixtureGen?: FixtureGenSettings;
 }
 
 /** Site-wide season registry (not prefixed by tournament key). */

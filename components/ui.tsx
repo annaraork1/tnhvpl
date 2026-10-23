@@ -191,3 +191,104 @@ export function PinGate({ need, children }: { need: "scorer" | "admin"; children
     </form>
   );
 }
+
+/** Gate for auctioneer console / projector — admin or auctioneer PIN. */
+export function AuctionStaffGate({ children }: { children: React.ReactNode }) {
+  const { role, roleReady, login, logout } = useLive();
+  const [val, setVal] = useState("");
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  if (!roleReady) return <div className="empty">Checking PIN…</div>;
+  if (role === "admin" || role === "auctioneer") return <>{children}</>;
+  return (
+    <form
+      className="card pingate"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setBusy(true);
+        const r = await login(val);
+        setBusy(false);
+        if (!r.ok) setMsg(r.error ?? "Wrong PIN");
+        else if (r.role !== "admin" && r.role !== "auctioneer") {
+          logout();
+          setMsg("Use the auctioneer or admin PIN.");
+        } else setMsg("");
+      }}
+    >
+      <h2>Auction staff PIN</h2>
+      <p className="muted">Enter the auctioneer or admin PIN to continue. It stays on this device.</p>
+      <input
+        inputMode="numeric"
+        autoComplete="off"
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        placeholder="PIN"
+        aria-label="PIN"
+      />
+      <button className="btn gold" type="submit" disabled={busy}>
+        {busy ? "Checking…" : "Continue"}
+      </button>
+      {msg && <p className="error">{msg}</p>}
+    </form>
+  );
+}
+
+/** Gate for owner bidding — owner PIN (with team pick) or admin. */
+export function AuctionOwnerGate({ children }: { children: React.ReactNode }) {
+  const { role, roleReady, login, logout, state } = useLive();
+  const [val, setVal] = useState("");
+  const [teamId, setTeamId] = useState("");
+  const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  if (!roleReady) return <div className="empty">Checking PIN…</div>;
+  if (role === "owner" || role === "admin") return <>{children}</>;
+  const teams = state?.config.teams ?? [];
+  return (
+    <form
+      className="card pingate stack"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!teamId) {
+          setMsg("Pick your team");
+          return;
+        }
+        setBusy(true);
+        const r = await login(val, { teamId });
+        setBusy(false);
+        if (!r.ok) setMsg(r.error ?? "Wrong PIN");
+        else if (r.role !== "owner") {
+          logout();
+          setMsg("That PIN is not an owner PIN for this team.");
+        } else setMsg("");
+      }}
+    >
+      <h2>Owner login</h2>
+      <p className="muted">
+        Pick your team and enter the owner PIN from the admin. After Continue you can bid for the player on the block.
+        The PIN stays on this phone.
+      </p>
+      <select value={teamId} onChange={(e) => setTeamId(e.target.value)} aria-label="Team" required>
+        <option value="">Select team…</option>
+        {teams.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.name}
+          </option>
+        ))}
+      </select>
+      <input
+        inputMode="numeric"
+        autoComplete="off"
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        placeholder="Owner PIN"
+        aria-label="PIN"
+      />
+      <button className="btn gold" type="submit" disabled={busy || !val.trim()}>
+        {busy ? "Checking…" : "Continue"}
+      </button>
+      {msg && <p className="error">{msg}</p>}
+    </form>
+  );
+}

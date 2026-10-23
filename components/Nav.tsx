@@ -21,7 +21,7 @@ export function Nav() {
   const { state, error, seasonHref } = useLive();
   // Practice match pages keep the site header (completed / setup / continue).
   // Live scoring uses a fixed fullscreen .scorer that covers the nav.
-  if (path.startsWith("/display") || /^\/score\/.+/.test(path)) return null;
+  if (path.startsWith("/display") || path.startsWith("/auction/projector") || /^\/score\/.+/.test(path)) return null;
   const logo = state?.meta?.logo || DEFAULT_LOGO;
   const short = state?.meta?.short ?? state?.config.tournament.short ?? "TNHVPL";
   const subtitle = state?.meta?.subtitle ?? state?.config.tournament.subtitle ?? "";

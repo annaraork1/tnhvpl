@@ -1,0 +1,371 @@
+<!-- REFERENCE ONLY: the single-page draw tool used for Season 5 (no backend, localStorage). Port its UX and rules into the app; do not copy as-is. -->
+<!doctype html><html><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><style>[hidden]{display:none!important}</style></head><body>
+<title>TNHVPL Auction Draw</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: stage card (draw + reveal + verdict) on top, 1–43 board, team squads, then list editors; single dark look matching the TNHVPL decks */
+:root{
+  --bg:#0A1128; --card:#132038; --line:#1F2E4E; --wm:#16213E;
+  --gold:#D4AF37; --cream:#F5F1E6; --muted:#97A2C0;
+  --sold:#2A9D8F; --unsold:#E76F51;
+  --display:"Barlow Condensed","Cambria","Arial Narrow",sans-serif;
+  --body:"Barlow","Calibri","Segoe UI",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--cream);font-family:var(--body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:980px;margin:0 auto;display:grid;gap:20px}
+header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px}
+.kicker{font-family:var(--display);letter-spacing:.18em;text-transform:uppercase;color:var(--gold);font-size:13px;font-weight:600}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(30px,6vw,44px);line-height:1;margin:2px 0 0;text-wrap:balance}
+.stats{display:flex;gap:8px;flex-wrap:wrap}
+.chip{font-family:var(--display);font-size:15px;font-weight:600;padding:5px 12px;border-radius:999px;border:1px solid var(--line);color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.chip b{color:var(--cream);font-weight:700}
+.chip.s b{color:var(--sold)} .chip.u b{color:var(--unsold)} .chip.r{border-color:var(--gold);color:var(--gold)}
+
+.stage{position:relative;overflow:hidden;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:28px 20px;display:grid;justify-items:center;gap:16px;text-align:center;min-height:360px;align-content:center}
+.stage::before{content:"";position:absolute;right:-90px;top:-90px;width:260px;height:260px;border-radius:50%;
+  background:radial-gradient(circle at 50% 50%,transparent 58%,var(--wm) 58.5%,var(--wm) 60%,transparent 60.5%);border:2px solid var(--wm);pointer-events:none}
+.roundtag{font-family:var(--display);font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.ball{position:relative;width:min(220px,56vw);aspect-ratio:1;max-width:100%;border-radius:50%;display:grid;place-items:center;
+  border:3px solid var(--gold);background:radial-gradient(circle at 35% 30%,#1c2c4d,var(--bg) 70%);box-shadow:0 0 0 8px rgba(212,175,55,.08)}
+.ball .num{font-family:var(--display);font-weight:800;font-size:clamp(80px,22vw,128px);line-height:1;font-variant-numeric:tabular-nums;color:var(--cream)}
+.ball .q{font-family:var(--display);font-weight:700;font-size:96px;color:var(--gold);opacity:.8}
+.ball.spin .num{color:var(--muted)}
+.ball.pop{animation:pop .45s ease-out}
+@keyframes pop{0%{transform:scale(.85)}60%{transform:scale(1.06)}100%{transform:scale(1)}}
+.pname{font-family:var(--display);font-weight:700;font-size:clamp(26px,5vw,38px);line-height:1.1;text-wrap:balance;min-height:1.1em;overflow-wrap:anywhere}
+.ppos{display:inline-block;font-family:var(--display);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);border:1px solid var(--gold);border-radius:999px;padding:2px 12px}
+.hint{color:var(--muted);font-size:14px;max-width:44ch;margin:0}
+.actions{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+button{font:inherit;cursor:pointer;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--cream);padding:10px 16px}
+button:focus-visible,textarea:focus-visible,.cell:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+button:disabled{opacity:.4;cursor:not-allowed}
+.big{font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:.06em;text-transform:uppercase;padding:14px 28px;min-width:150px}
+.primary{background:var(--gold);color:var(--bg);border-color:var(--gold)}
+.btn-sold{background:var(--sold);border-color:var(--sold);color:#fff}
+.btn-unsold{background:var(--unsold);border-color:var(--unsold);color:#fff}
+.ghost{color:var(--muted)}
+.ghost:hover{color:var(--cream);border-color:var(--muted)}
+
+.section-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
+h2{font-family:var(--display);font-size:20px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin:0}
+.legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:13px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.board{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px}
+.cell{position:relative;aspect-ratio:1;border-radius:12px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;
+  font-family:var(--display);font-weight:700;font-size:24px;font-variant-numeric:tabular-nums;color:var(--muted);padding:0}
+.cell small{position:absolute;bottom:4px;left:4px;right:4px;font-family:var(--body);font-size:9px;font-weight:600;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.9}
+.cell.sold{background:var(--tc,var(--sold));border-color:var(--tc,var(--sold));color:var(--bg)}
+.cell.unsold{background:transparent;border:2px solid var(--unsold);color:var(--unsold)}
+.cell.current{border:2px solid var(--gold);color:var(--gold);box-shadow:0 0 0 3px rgba(212,175,55,.2)}
+.cell .rb{position:absolute;top:3px;right:5px;font-size:10px;font-family:var(--body);font-weight:600}
+.cell .tt{position:absolute;top:3px;left:5px;font-size:10px;font-family:var(--body);font-weight:700;letter-spacing:.04em}
+
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;display:grid;gap:12px;align-content:start;min-width:0}
+.teams{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.team{border-top:4px solid var(--tc)}
+.team h3{font-family:var(--display);font-size:22px;font-weight:700;margin:0;display:flex;justify-content:space-between;gap:8px;align-items:baseline;overflow-wrap:anywhere}
+.team h3 span{font-size:15px;color:var(--muted);font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+ol.plist{margin:0;padding-left:0;list-style:none;display:grid;gap:4px;font-size:14px}
+ol.plist li{display:flex;gap:10px;min-width:0} ol.plist li span:first-child{font-family:var(--display);font-weight:700;color:var(--gold);min-width:28px;font-variant-numeric:tabular-nums}
+ol.plist li span:last-child{min-width:0;overflow-wrap:anywhere}
+.empty{color:var(--muted);font-size:13px}
+.editors{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+textarea{width:100%;min-height:200px;resize:vertical;background:var(--bg);color:var(--cream);border:1px solid var(--line);border-radius:10px;padding:12px;font:14px/1.5 var(--body)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.note{color:var(--muted);font-size:13px;margin:0}
+
+.sheet[hidden]{display:none}
+.sheet{position:fixed;inset:0;background:rgba(5,9,22,.75);display:grid;place-items:center;z-index:20;padding:16px;overflow-y:auto}
+.sheet .box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;width:min(440px,100%);display:grid;gap:14px;text-align:center}
+.sheet h3{font-family:var(--display);font-size:26px;margin:0;overflow-wrap:anywhere}
+.pick{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.pick button{display:flex;align-items:center;gap:10px;text-align:left;border:2px solid var(--tc);padding:12px;font-family:var(--display);font-size:19px;font-weight:700}
+.pick button:hover{background:var(--tc);color:var(--bg)}
+.pick button:disabled{border-style:dashed;opacity:.45}
+.pick button:disabled:hover{background:transparent;color:var(--cream)}
+.pick button:disabled:hover .c{color:var(--muted)}
+.full{color:var(--unsold);font-weight:700}
+.pick .k{display:grid;place-items:center;flex:none;width:24px;height:24px;border-radius:6px;background:var(--tc);color:var(--bg);font-size:14px}
+.pick .c{margin-left:auto;font-size:14px;color:var(--muted);font-weight:600;font-variant-numeric:tabular-nums}
+.pick button:hover .c{color:var(--bg)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--cream);color:var(--bg);padding:8px 16px;border-radius:999px;font-weight:600;z-index:30;max-width:calc(100% - 32px);text-align:center}
+@media (prefers-reduced-motion:reduce){.ball.pop{animation:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="kicker">TNH Volleyball · Season 5 · Player Auction</div>
+      <h1>TNHVPL Auction Draw</h1>
+    </div>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <section class="stage" id="stage" aria-live="polite"></section>
+
+  <section style="display:grid;gap:12px">
+    <div class="section-head">
+      <h2>Draw board</h2>
+      <div class="legend"><span><i style="background:var(--card);border:1px solid var(--muted)"></i>Not drawn</span><span><i style="background:var(--sold)"></i>Sold (team colour)</span><span><i style="border:2px solid var(--unsold)"></i>Unsold</span><span><i style="border:2px solid var(--gold)"></i>On the block</span></div>
+    </div>
+    <div class="board" id="board"></div>
+    <p class="note">Tap a number to correct it or move the player to another team. Keys: Space draws or reveals, S opens the team picker, U marks unsold, 1–9 picks a team.</p>
+  </section>
+
+  <section style="display:grid;gap:12px">
+    <h2>Team squads</h2>
+    <div class="teams" id="teams"></div>
+  </section>
+
+  <section class="editors">
+    <div class="panel">
+      <div class="section-head"><h2>Player list</h2><span class="note" id="rosterCount"></span></div>
+      <p class="note">One player per line, in auction number order (line 1 is #1). Add a position after a comma, for example <em>Ravi Kumar, Setter</em>.</p>
+      <textarea id="roster" spellcheck="false" aria-label="Player list"></textarea>
+      <div class="row"><button class="primary" id="saveRoster">Save player list</button></div>
+    </div>
+    <div class="panel">
+      <div class="section-head"><h2>Teams</h2><span class="note" id="teamCount"></span></div>
+      <p class="note">One team per line. Renaming keeps the players already in that team.</p>
+      <textarea id="teamsText" spellcheck="false" aria-label="Team names"></textarea>
+      <div class="row"><button class="primary" id="saveTeams">Save teams</button></div>
+    </div>
+  </section>
+
+  <div class="row">
+    <button class="ghost" id="undoBtn">Undo last action</button>
+    <button class="ghost" id="resetBtn">Restart auction</button>
+  </div>
+</div>
+
+<div class="sheet" id="sheet" hidden><div class="box" id="sheetBox"></div></div>
+
+<script>
+(function(){
+const KEY='tnhvpl-draw-s5';
+const COLORS=['#4CC9F0','#F4A261','#FFD166','#80B918','#F15BB5','#9B8CFF','#06D6A0','#FF8C69','#B8C4E0','#E9C46A'];
+const $=id=>document.getElementById(id);
+const defaultRoster=Array.from({length:43},(_,i)=>`Player ${i+1}, Intermediate`).join("
+"); // placeholder names
+const defaultTeams=['Spike Surge','Eagle Squad','Supreme Warriors','Super Saiyans','Pavilion Rovers'].join('\n');
+let S, history=[];
+
+const lines=t=>t.split('\n').map(l=>l.trim()).filter(Boolean);
+function parse(t){
+  return lines(t).map(l=>{const k=l.lastIndexOf(',');return k>0?{name:l.slice(0,k).trim(),pos:l.slice(k+1).trim()}:{name:l,pos:''}});
+}
+function fresh(rosterText,teamsText){
+  const players=parse(rosterText);
+  return {rosterText,teamsText,teams:lines(teamsText),players:players.map(p=>({...p,status:'pending',round:0,team:null})),
+    round:1,pool:players.map((_,i)=>i),current:null,revealed:false};
+}
+function load(){try{const r=localStorage.getItem(KEY);if(r)return JSON.parse(r)}catch(e){}return null}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function snap(){history.push(JSON.stringify(S));if(history.length>200)history.shift()}
+S=load()||fresh(defaultRoster,defaultTeams);
+if(!S.teams){S.teamsText=defaultTeams;S.teams=lines(defaultTeams)}
+S.players.forEach(p=>{if(p.team===undefined)p.team=null});
+
+const tc=i=>COLORS[i%COLORS.length];
+const initials=n=>{const w=n.split(/\s+/).filter(Boolean);return (w.length>1?w[0][0]+w[1][0]:n.slice(0,2)).toUpperCase()};
+const teamSize=t=>S.players.filter(p=>p.status==='sold'&&p.team===t).length;
+// Squad rule: each team can take at most CAP players until only the leftover players remain (43 - 5x8 = 3); then every team can bid again.
+const CAP=8;
+const leftover=()=>Math.max(0,S.players.length-S.teams.length*CAP);
+const notSold=()=>S.players.filter(p=>p.status!=='sold').length;
+const extraOpen=()=>notSold()<=leftover();
+const isFull=(t,i)=>{if(extraOpen())return false;const own=i!=null&&S.players[i].status==='sold'&&S.players[i].team===t?1:0;return teamSize(t)-own>=CAP};
+function counts(){const c={sold:0,unsold:0,pending:0};S.players.forEach(p=>c[p.status]++);return c}
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),1800)}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+function render(){
+  const c=counts(), n=S.players.length;
+  $('stats').innerHTML=`<span class="chip r">Round <b style="color:inherit">${S.round}</b>${S.round>1?' · re-bid':''}</span>
+    <span class="chip s">Sold <b>${c.sold}</b></span><span class="chip u">Unsold <b>${c.unsold}</b></span>
+    <span class="chip">Left to draw <b>${S.pool.length+(S.current!==null?1:0)}</b></span>
+    <span class="chip r">${extraOpen()?`Last ${leftover()}: open to all teams`:`Max ${CAP} per team`}</span>`;
+  renderStage(c,n);
+  $('board').innerHTML=S.players.map((p,i)=>{
+    const sold=p.status==='sold'&&i!==S.current;
+    const cls=i===S.current?'current':(p.status==='pending'?'':p.status);
+    const style=sold&&p.team!==null?` style="--tc:${tc(p.team)}"`:'';
+    const label=(p.status!=='pending'||(i===S.current&&S.revealed))?`<small>${esc(p.name)}</small>`:'';
+    const rb=p.round>1?`<span class="rb">R${p.round}</span>`:'';
+    const tt=sold&&p.team!==null&&S.teams[p.team]?`<span class="tt">${esc(initials(S.teams[p.team]))}</span>`:'';
+    const tn=sold&&p.team!==null&&S.teams[p.team]?`, ${S.teams[p.team]}`:'';
+    return `<button class="cell ${cls}"${style} data-i="${i}" aria-label="#${i+1} ${esc(p.name)}, ${p.status}${esc(tn)}">${i+1}${tt}${rb}${label}</button>`;
+  }).join('');
+  renderTeams();
+  $('rosterCount').textContent=`${n} players`;
+  $('teamCount').textContent=`${S.teams.length} teams`;
+  if(document.activeElement!==$('roster')) $('roster').value=S.rosterText;
+  if(document.activeElement!==$('teamsText')) $('teamsText').value=S.teamsText;
+  $('undoBtn').disabled=!history.length;
+  save();
+}
+
+function plist(arr){
+  return arr.length?`<ol class="plist">${arr.map(x=>`<li><span>#${x.i+1}</span><span>${esc(x.p.name)}${x.p.pos?` <span class="note">· ${esc(x.p.pos)}</span>`:''}${x.p.round>1?` <span class="note">(round ${x.p.round})</span>`:''}</span></li>`).join('')}</ol>`:`<p class="empty">No players yet</p>`;
+}
+function renderTeams(){
+  const all=S.players.map((p,i)=>({p,i}));
+  let html=S.teams.map((t,ti)=>{
+    const L=all.filter(x=>x.p.status==='sold'&&x.p.team===ti);
+    return `<div class="panel team" style="--tc:${tc(ti)}"><h3>${esc(t)} <span>${L.length} player${L.length===1?'':'s'}${!extraOpen()&&L.length>=CAP?' · <span class="full">Full</span>':''}</span></h3>${plist(L)}</div>`;
+  }).join('');
+  const orphan=all.filter(x=>x.p.status==='sold'&&(x.p.team===null||!S.teams[x.p.team]));
+  if(orphan.length) html+=`<div class="panel team" style="--tc:var(--muted)"><h3>Sold, no team <span>${orphan.length}</span></h3><p class="note">Tap the number on the board to assign a team.</p>${plist(orphan)}</div>`;
+  const un=all.filter(x=>x.p.status==='unsold');
+  html+=`<div class="panel team" style="--tc:var(--unsold)"><h3 style="color:var(--unsold)">Unsold <span>${un.length}</span></h3>${plist(un)}</div>`;
+  $('teams').innerHTML=html;
+}
+
+function renderStage(c,n){
+  const st=$('stage');
+  const tag=`<div class="roundtag">Round ${S.round}${S.round>1?' · unsold re-bid':''} · ${S.pool.length} in the pool</div>`;
+  if(S.current===null){
+    if(S.pool.length){
+      st.innerHTML=`${tag}<div class="ball"><span class="q">?</span></div>
+        <div class="pname">Ready for the next player</div>
+        <div class="actions"><button class="big primary" id="drawBtn">Draw number</button></div>`;
+      $('drawBtn').onclick=draw;
+    } else if(c.unsold){
+      st.innerHTML=`<div class="roundtag">Round ${S.round} complete</div>
+        <div class="pname">${c.sold} sold · ${c.unsold} unsold</div>
+        <p class="hint">Every number has been drawn. Put the ${c.unsold} unsold player${c.unsold>1?'s':''} back on the block for round ${S.round+1}, drawn at random again.</p>
+        <div class="actions"><button class="big primary" id="nextRound">Start round ${S.round+1}</button></div>`;
+      $('nextRound').onclick=nextRound;
+    } else {
+      st.innerHTML=`<div class="roundtag">Auction complete</div>
+        <div class="ball"><span class="num" style="font-size:72px">${n}</span></div>
+        <div class="pname">All ${n} players sold</div><p class="hint">Done in ${S.round} round${S.round>1?'s':''}. Squads are listed below.</p>`;
+    }
+    return;
+  }
+  const p=S.players[S.current];
+  if(!S.revealed){
+    st.innerHTML=`${tag}<div class="ball"><span class="q">?</span></div>
+      <div class="pname">Number drawn</div><p class="hint">Reveal it when the room is ready.</p>
+      <div class="actions"><button class="big primary" id="showBtn">Show number</button></div>`;
+    $('showBtn').onclick=reveal;
+  } else {
+    st.innerHTML=`${tag}<div class="ball pop"><span class="num">${S.current+1}</span></div>
+      <div class="pname">${esc(p.name)}</div>${p.pos?`<span class="ppos">${esc(p.pos)}</span>`:''}
+      ${S.round>1?'<p class="hint">Unsold in an earlier round. Back for re-bid.</p>':''}
+      <div class="actions"><button class="big btn-sold" id="soldBtn">Sold</button><button class="big btn-unsold" id="unsoldBtn">Unsold</button></div>`;
+    $('soldBtn').onclick=()=>pickTeam(S.current,t=>sell(S.current,t,true));
+    $('unsoldBtn').onclick=markUnsold;
+  }
+}
+
+function draw(){
+  if(!S.pool.length||S.current!==null)return;
+  snap();const k=Math.floor(Math.random()*S.pool.length);
+  S.current=S.pool.splice(k,1)[0];S.revealed=false;render();
+}
+function reveal(){
+  if(S.current===null||S.revealed)return;
+  const btn=$('showBtn');if(btn)btn.disabled=true;
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches){S.revealed=true;render();return}
+  const ball=document.querySelector('.ball');ball.classList.add('spin');
+  const n=S.players.length;let t=0;
+  const iv=setInterval(()=>{ball.innerHTML=`<span class="num">${1+Math.floor(Math.random()*n)}</span>`;
+    if(++t>14){clearInterval(iv);S.revealed=true;render()}},60);
+}
+function sell(i,team,fromStage){
+  snap();
+  if(isFull(team,i)){toast(`${S.teams[team]} already has ${CAP} players`);return}
+  const wasOpen=extraOpen();
+  const p=S.players[i];p.status='sold';p.team=team;p.round=S.round;
+  S.pool=S.pool.filter(x=>x!==i);
+  if(fromStage||S.current===i){S.current=null;S.revealed=false}
+  toast(!wasOpen&&extraOpen()&&notSold()>0?`Every team has ${CAP}. The last ${notSold()} player${notSold()>1?'s are':' is'} open to all teams.`:`#${i+1} ${p.name} → ${S.teams[team]}`);render();
+}
+function markUnsold(){
+  if(S.current===null||!S.revealed)return;
+  snap();const p=S.players[S.current];p.status='unsold';p.team=null;p.round=S.round;
+  toast(`#${S.current+1} ${p.name}: Unsold`);S.current=null;S.revealed=false;render();
+}
+function nextRound(){
+  snap();S.round++;S.pool=S.players.map((p,i)=>p.status==='unsold'?i:-1).filter(i=>i>=0);render();
+}
+
+function pickTeam(i,cb){
+  if(!S.teams.length){toast('Add team names first');return}
+  const p=S.players[i];
+  openSheet(`<h3>#${i+1} ${esc(p.name)}</h3><p class="note">Sold to which team? ${extraOpen()?`Last ${leftover()} players: every team can bid.`:`Teams with ${CAP} players are full until only ${leftover()} players are left.`}</p>
+    <div class="pick">${S.teams.map((t,ti)=>(full=>`<button style="--tc:${tc(ti)}" data-a="${ti}"${full?' disabled aria-disabled="true"':''}>${ti<9?`<span class="k">${ti+1}</span>`:''}<span>${esc(t)}</span><span class="c">${full?'Full':extraOpen()?teamSize(ti):teamSize(ti)+'/'+CAP}</span></button>`)(isFull(ti,i))).join('')}</div>
+    <div class="actions"><button class="ghost" data-a="close">Cancel</button></div>`,a=>{if(a!=='close')cb(+a)});
+}
+
+$('board').addEventListener('click',e=>{
+  const b=e.target.closest('.cell');if(!b)return;const i=+b.dataset.i,p=S.players[i];
+  const now=i===S.current?'on the block':p.status==='pending'?'not drawn yet':p.status==='sold'?`sold to ${S.teams[p.team]||'no team'}`:'unsold';
+  openSheet(`<h3>#${i+1} ${esc(p.name)}</h3><p class="note">Currently ${esc(now)}.</p>
+    <div class="actions"><button class="btn-sold" data-a="sold">${p.status==='sold'?'Change team':'Mark sold'}</button><button class="btn-unsold" data-a="unsold">Mark unsold</button></div>
+    <div class="actions"><button class="ghost" data-a="pending">Put back in pool</button><button class="ghost" data-a="close">Cancel</button></div>`,a=>{
+      if(a==='close')return;
+      if(a==='sold'){setTimeout(()=>pickTeam(i,t=>sell(i,t,false)),0);return}
+      snap();
+      if(S.current===i){S.current=null;S.revealed=false}
+      S.pool=S.pool.filter(x=>x!==i);p.team=null;
+      if(a==='pending'){p.status=S.round>1?'unsold':'pending';S.pool.push(i)}
+      else{p.status='unsold';p.round=S.round}
+      render();
+    });
+});
+
+function openSheet(html,cb){
+  $('sheetBox').innerHTML=html;$('sheet').hidden=false;
+  const f=$('sheetBox').querySelector('button');f&&f.focus();
+  $('sheetBox').onclick=e=>{const b=e.target.closest('button');if(!b||b.disabled)return;$('sheet').hidden=true;cb(b.dataset.a)};
+}
+$('sheet').addEventListener('click',e=>{if(e.target.id==='sheet')$('sheet').hidden=true});
+
+$('saveRoster').onclick=()=>{
+  const t=$('roster').value;const list=parse(t);
+  if(!list.length){toast('Add at least one player');return}
+  const started=S.players.some(p=>p.status!=='pending')||S.current!==null;
+  if(started&&list.length===S.players.length){snap();S.rosterText=t;list.forEach((x,i)=>{S.players[i].name=x.name;S.players[i].pos=x.pos});render();toast('Names updated');return}
+  if(started){
+    openSheet(`<h3>Restart with ${list.length} players?</h3><p class="note">The pool size changed, so the draw starts over and current results are cleared.</p>
+      <div class="actions"><button class="primary" data-a="ok">Restart</button><button class="ghost" data-a="no">Cancel</button></div>`,a=>{
+        if(a==='ok'){snap();S=fresh(t,S.teamsText);render();toast('Player list saved')}});
+    return;
+  }
+  snap();S=fresh(t,S.teamsText);render();toast(`Saved ${list.length} players`);
+};
+$('saveTeams').onclick=()=>{
+  const t=$('teamsText').value;const list=lines(t);
+  if(!list.length){toast('Add at least one team');return}
+  const stranded=S.players.filter(p=>p.status==='sold'&&p.team!==null&&p.team>=list.length).length;
+  if(stranded){toast(`${stranded} player${stranded>1?'s are':' is'} in a team you removed. Move them first.`);return}
+  snap();S.teamsText=t;S.teams=list;render();toast(`Saved ${list.length} teams`);
+};
+$('undoBtn').onclick=()=>{if(!history.length)return;S=JSON.parse(history.pop());render();toast('Undone')};
+$('resetBtn').onclick=()=>openSheet(`<h3>Restart the auction?</h3><p class="note">All results and team squads are cleared. Your player and team lists stay.</p>
+  <div class="actions"><button class="btn-unsold" data-a="ok">Restart</button><button class="ghost" data-a="no">Cancel</button></div>`,a=>{
+    if(a==='ok'){snap();S=fresh(S.rosterText,S.teamsText);render();toast('Auction restarted')}});
+
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='TEXTAREA')return;
+  if(!$('sheet').hidden){
+    if(e.key==='Escape'){$('sheet').hidden=true;return}
+    if(/^[1-9]$/.test(e.key)){const b=$('sheetBox').querySelector(`.pick button[data-a="${+e.key-1}"]`);if(b)b.click()}
+    return;
+  }
+  if(e.code==='Space'){e.preventDefault();if(S.current===null)draw();else if(!S.revealed)reveal()}
+  else if((e.key==='s'||e.key==='S')&&S.current!==null&&S.revealed)pickTeam(S.current,t=>sell(S.current,t,true));
+  else if(e.key==='u'||e.key==='U')markUnsold();
+});
+render();
+})();
+</script>
+
+</body></html>

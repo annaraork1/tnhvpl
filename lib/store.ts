@@ -3,6 +3,12 @@ import { emptyAwards, normalizeAwards } from "./awards";
 import { buildMasterCatalog, type MasterCatalog } from "./catalog";
 import { defaultConfig, defaultSettings, seedPlayers } from "./defaults";
 import {
+  defaultAuctionSettings,
+  defaultRegistrationSettings,
+  needsWorkflowBackfill,
+  withWorkflowDefaults,
+} from "./season";
+import {
   DEFAULT_LOGO,
   DEFAULT_TOURNAMENT_KEY,
   REGISTRY_KEY,
@@ -33,8 +39,14 @@ const mem = (g.__mem ??= new Map<string, string>());
 
 export const storageKind: AppState["storage"] = redis ? "redis" : "memory";
 
-const cfgKey = (prefix: string) => `${prefix}:config`;
-const matchKey = (prefix: string, id: string) => `${prefix}:m:${id}`;
+export const cfgKey = (prefix: string) => `${prefix}:config`;
+export const matchKey = (prefix: string, id: string) => `${prefix}:m:${id}`;
+export const privateKey = (prefix: string) => `${prefix}:private`;
+export const auctionKey = (prefix: string) => `${prefix}:auction`;
+export const ownersKey = (prefix: string) => `${prefix}:owners`;
+export const regIndexKey = (prefix: string) => `${prefix}:reg:index`;
+export const regEntryKey = (prefix: string, id: string) => `${prefix}:reg:${id}`;
+export const photoKey = (prefix: string, playerId: string) => `${prefix}:ph:${playerId}`;
 
 const CAS = `
 local cur = redis.call('GET', KEYS[1])
@@ -50,12 +62,23 @@ end
 redis.call('SET', KEYS[1], ARGV[1])
 return 1`;
 
-async function readRaw<T>(keys: string[]): Promise<(T | null)[]> {
+export async function readRaw<T>(keys: string[]): Promise<(T | null)[]> {
   if (redis) {
     if (!keys.length) return [];
     return (await redis.mget<(T | null)[]>(...keys)) as (T | null)[];
   }
   return keys.map((k) => (mem.has(k) ? (JSON.parse(mem.get(k)!) as T) : null));
+}
+
+export async function writeRaw(key: string, value: unknown): Promise<void> {
+  const json = JSON.stringify(value);
+  if (redis) await redis.set(key, json);
+  else mem.set(key, json);
+}
+
+export async function delRaw(key: string): Promise<void> {
+  if (redis) await redis.del(key);
+  else mem.delete(key);
 }
 
 async function cas(key: string, value: { v: number }, expected: number): Promise<boolean> {
@@ -77,7 +100,7 @@ function normalizeConfig(cfg: Config | null, fallback: Config): Config {
   const awards = normalizeAwards(config.awards);
   // Legacy configs omit `players` — fill from seed. Explicit [] (blank season) is kept.
   const players = Array.isArray(config.players) ? config.players : seedPlayers();
-  const base: Config = {
+  let base: Config = {
     ...config,
     awards,
     players,
@@ -85,15 +108,19 @@ function normalizeConfig(cfg: Config | null, fallback: Config): Config {
     fixtures: Array.isArray(config.fixtures) ? config.fixtures : [],
   };
   if (!Number.isInteger(sec) || (sec as number) < 5 || (sec as number) > 300) {
-    return {
+    base = {
       ...base,
       settings: { ...defaultSettings, ...config.settings, timeoutSeconds: defaultSettings.timeoutSeconds },
     };
   }
-  return base;
+  return withWorkflowDefaults(base);
 }
 
-async function update<T extends { v: number }>(key: string, fallback: () => T, fn: (cur: T) => T | string): Promise<T> {
+export async function update<T extends { v: number }>(
+  key: string,
+  fallback: () => T,
+  fn: (cur: T) => T | string,
+): Promise<T> {
   for (let attempt = 0; attempt < 6; attempt++) {
     const [cur] = await readRaw<T>([key]);
     const base = cur ?? fallback();
@@ -151,7 +178,17 @@ export async function loadState(requestedKey?: string | null): Promise<AppState>
   const fixtureIds = (cfgHint?.fixtures?.length ? cfgHint.fixtures : fallback.fixtures).map((f) => f.id);
   const keys = [cfgKey(key), ...fixtureIds.map((id) => matchKey(key, id))];
   const [cfg, ...ms] = await readRaw<Config | MatchDoc>(keys);
-  const config = normalizeConfig(cfg as Config | null, fallback);
+  let config = normalizeConfig(cfg as Config | null, fallback);
+
+  // Persist Season 5 / legacy workflow metadata once (stage, auction, registration, fixtureGen).
+  if (cfg && needsWorkflowBackfill(cfg as Config)) {
+    try {
+      config = await updateConfig(key, (c) => withWorkflowDefaults(normalizeConfig(c, fallback)));
+    } catch {
+      /* read path still serves in-memory defaults */
+    }
+  }
+
   const matches: Record<string, MatchDoc> = {};
   config.fixtures.forEach((f) => {
     const idx = fixtureIds.indexOf(f.id);
@@ -238,6 +275,8 @@ export async function createTournamentSeason(opts: {
   logo: string;
   mode: "blank" | "clone";
   cloneFrom?: string;
+  /** "workflow" (default): team shells only, stage=registration. "archive": full copy of players/fixtures. */
+  cloneStyle?: "workflow" | "archive";
 }): Promise<{ registry: Registry; key: string }> {
   if (!isValidTournamentKey(opts.key)) {
     throw new ActionError("Key must be lowercase letters, numbers and hyphens (e.g. tnhvpl-s6)");
@@ -246,23 +285,74 @@ export async function createTournamentSeason(opts: {
   const registry = await loadRegistry();
   if (registry.tournaments.some((t) => t.key === opts.key)) throw new ActionError("That tournament key already exists");
 
+  const workflowDefaults = {
+    stage: "registration" as const,
+    stageLog: [] as Config["stageLog"],
+    registration: defaultRegistrationSettings(),
+    auction: defaultAuctionSettings(),
+  };
+
   let config: Config;
   if (opts.mode === "clone") {
     const from =
       opts.cloneFrom && registry.tournaments.some((t) => t.key === opts.cloneFrom) ? opts.cloneFrom! : registry.activeKey;
     const src = await loadState(from);
-    config = {
-      ...structuredClone(src.config),
-      v: 0,
-      tournament: {
-        name: opts.name.slice(0, 60),
-        short: (opts.short || src.config.tournament.short).slice(0, 20),
-        subtitle: opts.subtitle.slice(0, 80),
-        dates: opts.dates.slice(0, 60),
-      },
-      awards: emptyAwards(),
-      players: structuredClone(src.players),
-    };
+    const archive = opts.cloneStyle === "archive";
+    if (archive) {
+      // Full snapshot for demos / archive copies (players, squads, fixtures).
+      config = {
+        ...structuredClone(src.config),
+        v: 0,
+        tournament: {
+          name: opts.name.slice(0, 60),
+          short: (opts.short || src.config.tournament.short).slice(0, 20),
+          subtitle: opts.subtitle.slice(0, 80),
+          dates: opts.dates.slice(0, 60),
+        },
+        awards: emptyAwards(),
+        players: structuredClone(src.players),
+      };
+    } else {
+      // Workflow clone: team shells only; clear players/fixtures; start at registration.
+      // Do not copy registrations, private data, auction log, or owner PINs.
+      config = {
+        ...structuredClone(src.config),
+        v: 0,
+        tournament: {
+          name: opts.name.slice(0, 60),
+          short: (opts.short || src.config.tournament.short).slice(0, 20),
+          subtitle: opts.subtitle.slice(0, 80),
+          dates: opts.dates.slice(0, 60),
+        },
+        awards: emptyAwards(),
+        players: [],
+        fixtures: [],
+        teams: src.config.teams.map((t) => ({
+          ...structuredClone(t),
+          squad: [],
+        })),
+        ...workflowDefaults,
+        // Prefer source auction rules, but always reopen registration for a new season.
+        registration: {
+          ...defaultRegistrationSettings(),
+          ...(src.config.registration
+            ? {
+                consentText: src.config.registration.consentText,
+                requirePhoto: src.config.registration.requirePhoto,
+                minAge: src.config.registration.minAge,
+                guardianConsentUnder: src.config.registration.guardianConsentUnder,
+                skillLevels: src.config.registration.skillLevels,
+                numbering: src.config.registration.numbering,
+                columnMap: src.config.registration.columnMap,
+              }
+            : {}),
+          open: true,
+          closesAt: undefined,
+        },
+        auction: structuredClone(src.config.auction ?? defaultAuctionSettings()),
+        fixtureGen: undefined,
+      };
+    }
   } else {
     config = {
       v: 0,
@@ -277,6 +367,7 @@ export async function createTournamentSeason(opts: {
       fixtures: [],
       awards: emptyAwards(),
       players: [],
+      ...workflowDefaults,
     };
   }
 
