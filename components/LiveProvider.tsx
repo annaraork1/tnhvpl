@@ -13,6 +13,10 @@ interface Ctx {
   calc: Computed | null;
   error: string | null;
   updatedAt: number;
+  /** True until the first successful /api/state load (and while season switches). */
+  loading: boolean;
+  /** Count of in-flight /api/action writes. */
+  saving: number;
   /** Season key from ?season= or active season. */
   season: string | null;
   seasonHref: (path: string) => string;
@@ -76,6 +80,8 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AppState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(0);
   const [pin, setPinState] = useState("");
   const [role, setRole] = useState<StaffRole | null>(null);
   const [roleReady, setRoleReady] = useState(false);
@@ -84,6 +90,7 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
   const hold = useRef(false);
   const seasonRef = useRef(seasonParam);
   seasonRef.current = seasonParam;
+  const hasState = useRef(false);
 
   const setHold = useCallback((h: boolean) => {
     hold.current = h;
@@ -149,12 +156,15 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
     if (s.serverTime < lastServer.current) return;
     lastServer.current = s.serverTime;
     setState(s);
+    hasState.current = true;
     setUpdatedAt(Date.now());
     setError(null);
+    setLoading(false);
   }, []);
 
   const refresh = useCallback(
     async (fresh = false) => {
+      if (!hasState.current) setLoading(true);
       try {
         const params = new URLSearchParams();
         if (fresh) params.set("fresh", String(Date.now()));
@@ -166,6 +176,7 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
         accept(await r.json(), true);
       } catch {
         setError("Can't reach the server. Retrying…");
+        if (!hasState.current) setLoading(false);
       }
     },
     [accept],
@@ -174,7 +185,9 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
   // Reset poll clock when season query changes.
   useEffect(() => {
     lastServer.current = 0;
+    hasState.current = false;
     setState(null);
+    setLoading(true);
     void refresh(true);
     // intentionally only when ?season= changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -202,6 +215,7 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
 
   const act = useCallback(
     async (type: string, payload: Record<string, unknown> = {}, opts?: { noAccept?: boolean }) => {
+      setSaving((n) => n + 1);
       try {
         const season = seasonRef.current;
         const r = await fetch("/api/action", {
@@ -216,6 +230,8 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
         return { ok: true, state: j.state as AppState };
       } catch {
         return { ok: false, error: "No connection. Your tap was not saved." };
+      } finally {
+        setSaving((n) => Math.max(0, n - 1));
       }
     },
     [accept],
@@ -233,6 +249,8 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
         calc,
         error,
         updatedAt,
+        loading,
+        saving,
         season,
         seasonHref,
         refresh,

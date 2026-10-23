@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ClientTime } from "@/components/ClientTime";
 import { fireConfetti, WinConfetti } from "@/components/Confetti";
 import { PracticeLiveScore } from "@/components/PracticeLiveScore";
@@ -19,7 +19,40 @@ import { fetchPractice, practiceAct } from "@/lib/practiceApi";
 import { clearHostToken, getHostToken } from "@/lib/practiceHost";
 import type { PracticeMatchPublic } from "@/lib/practiceTypes";
 import { pressureBallForSide } from "@/lib/pressureBall";
-import type { MatchState, Side } from "@/lib/types";
+import type { MatchEvent, MatchState, Side } from "@/lib/types";
+
+type ScoreOp =
+  | { kind: "start"; serve: Side }
+  | { kind: "point"; side: Side }
+  | { kind: "timeout"; side: Side }
+  | { kind: "resume" }
+  | { kind: "nextSet" }
+  | { kind: "undo" };
+
+function applyScoreOp(ev: MatchEvent[], op: ScoreOp): MatchEvent[] {
+  const t = Date.now();
+  if (op.kind === "undo") {
+    const next = [...ev];
+    next.pop();
+    return next;
+  }
+  if (op.kind === "start") return [{ k: "start", serve: op.serve, t }];
+  const next = [...ev];
+  if (op.kind === "point") next.push({ k: "pt", s: op.side, t });
+  else if (op.kind === "timeout") next.push({ k: "to", s: op.side, t });
+  else if (op.kind === "resume") next.push({ k: "resume", t });
+  else if (op.kind === "nextSet") next.push({ k: "next", t });
+  return next;
+}
+
+function scoreOpToBody(op: ScoreOp): Record<string, unknown> {
+  if (op.kind === "undo") return { action: "undo" };
+  if (op.kind === "start") return { action: "start", serve: op.serve };
+  if (op.kind === "point") return { action: "point", side: op.side };
+  if (op.kind === "timeout") return { action: "timeout", side: op.side };
+  if (op.kind === "resume") return { action: "resume" };
+  return { action: "nextSet" };
+}
 
 const COLOR_A = "#4CC9F0";
 const COLOR_B = "#F4A261";
@@ -59,10 +92,13 @@ export default function PracticeMatchPage() {
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<ScoreOp[]>([]);
   const [flip, setFlip] = useState(false);
   const [adminPin, setAdminPin] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [updatedAt, setUpdatedAt] = useState(0);
+  const scoreQueue = useRef(Promise.resolve());
+  const pendingCount = useRef(0);
 
   const reload = useCallback(async () => {
     const token = getHostToken(id);
@@ -73,6 +109,8 @@ export default function PracticeMatchPage() {
       setMatch(null);
       return;
     }
+    // Don't clobber optimistic taps still in flight.
+    if (pendingCount.current > 0) return;
     setMatch(r.match);
     setState(r.state);
     setUpdatedAt(Date.now());
@@ -119,14 +157,47 @@ export default function PracticeMatchPage() {
     if (r.state) {
       setState(r.state);
       setUpdatedAt(Date.now());
-      // Match-over unmounts the scorer before WinConfetti can see the transition.
       if (prev && r.state.status === "done" && prev.status !== "done") {
         fireConfetti({ intensity: "match", colors: [COLOR_A, COLOR_B, "#f5bc28", "#f5f1e6"] });
       }
     } else if (r.match?.status === "done") setState(null);
-    if (navigator.vibrate) navigator.vibrate(body.action === "undo" ? [20, 40, 20] : 25);
     return true;
   };
+
+  const enqueueScore = useCallback(
+    (op: ScoreOp) => {
+      setPending((p) => [...p, op]);
+      pendingCount.current += 1;
+      if (navigator.vibrate) navigator.vibrate(op.kind === "undo" ? [20, 40, 20] : 25);
+      scoreQueue.current = scoreQueue.current.then(async () => {
+        const prevStatus = state?.status;
+        const r = await practiceAct({ type: "score", id, hostToken, ...scoreOpToBody(op) });
+        pendingCount.current = Math.max(0, pendingCount.current - 1);
+        setPending((p) => p.slice(1));
+        if (!r.ok) {
+          flash(r.error);
+          await reload();
+          return;
+        }
+        if (r.match) setMatch(r.match);
+        if (r.state) {
+          setState(r.state);
+          setUpdatedAt(Date.now());
+          if (r.state.status === "done" && prevStatus !== "done") {
+            fireConfetti({ intensity: "match", colors: [COLOR_A, COLOR_B, "#f5bc28", "#f5f1e6"] });
+          }
+        } else if (r.match?.status === "done") setState(null);
+      });
+    },
+    [hostToken, id, reload, state?.status],
+  );
+
+  const shownEv = useMemo(() => {
+    if (!match) return [] as MatchEvent[];
+    let ev = [...match.ev];
+    for (const op of pending) ev = applyScoreOp(ev, op);
+    return ev;
+  }, [match, pending]);
 
   if (error && !match) {
     return (
@@ -287,23 +358,24 @@ export default function PracticeMatchPage() {
     );
   }
 
-  const m = state ?? derive(match.ev, match.format, match.timeoutSeconds);
+  const m = derive(shownEv, match.format, match.timeoutSeconds);
   const name = (s: Side) => (s === "A" ? match.labelA : match.labelB);
   const set = m.sets[m.cur] ?? { a: 0, b: 0, target: match.format.targets[0], winner: null, toA: 0, toB: 0, firstServe: "A" as Side };
   const left: Side = flip ? "B" : "A";
   const right = other(left);
   const fmt = match.format;
   const inTimeout = !!m.timeout;
+  const saving = pending.length > 0;
 
-  const score = async (action: string, payload: Record<string, unknown> = {}) => {
+  const score = (op: ScoreOp) => {
     if (!canScore) {
       flash("Only the host can score (unless public scoring is on)");
       return;
     }
-    await act({ type: "score", action, ...payload });
+    enqueueScore(op);
   };
 
-  const undo = () => score("undo");
+  const undo = () => score({ kind: "undo" });
 
   // Spectators get the same read-only live board as tournament matches.
   if (!canScore) {
@@ -358,8 +430,8 @@ export default function PracticeMatchPage() {
                 key={s}
                 className="btn"
                 style={{ borderColor: color(s), padding: "16px 20px", fontSize: 18 }}
-                disabled={!canScore || busy}
-                onClick={() => score("start", { serve: s })}
+                disabled={!canScore}
+                onClick={() => score({ kind: "start", serve: s })}
               >
                 <span className="row" style={{ gap: 8 }}>
                   <SideMark side={s} label={name(s)} size={28} />
@@ -400,7 +472,7 @@ export default function PracticeMatchPage() {
   const pad = (s: Side) => {
     const pts = s === "A" ? set.a : set.b;
     const sets = s === "A" ? m.setsA : m.setsB;
-    const blocked = !canScore || m.status !== "live" || m.awaitingNext || inTimeout || busy;
+    const blocked = !canScore || m.status !== "live" || m.awaitingNext || inTimeout;
     const pressure =
       m.status === "live" && !m.awaitingNext && !inTimeout
         ? pressureBallForSide(s, set.a, set.b, set.target, fmt, m.setsA, m.setsB)
@@ -410,7 +482,7 @@ export default function PracticeMatchPage() {
         className="pad"
         style={{ ["--tc" as string]: color(s) }}
         disabled={blocked}
-        onClick={() => score("point", { side: s })}
+        onClick={() => score({ kind: "point", side: s })}
         aria-label={`Point to ${name(s)}`}
       >
         <span className="pteam">
@@ -430,9 +502,9 @@ export default function PracticeMatchPage() {
   const timeoutBtn = (s: Side) => (
     <button
       className="btn"
-      disabled={!canScore || m.status !== "live" || m.awaitingNext || inTimeout || busy || toLeft(s) <= 0}
+      disabled={!canScore || m.status !== "live" || m.awaitingNext || inTimeout || toLeft(s) <= 0}
       onClick={() => {
-        score("timeout", { side: s });
+        score({ kind: "timeout", side: s });
         flash(`Timeout ${name(s)}`);
       }}
     >
@@ -453,7 +525,7 @@ export default function PracticeMatchPage() {
           </b>
           <div className="muted" style={{ fontSize: 14 }}>
             Practice · sets {m.setsA}–{m.setsB}
-            {busy ? " · saving…" : ""}
+            {saving ? " · saving…" : ""}
             {!canScore ? " · view only" : ""}
           </div>
         </div>
@@ -471,6 +543,13 @@ export default function PracticeMatchPage() {
         </div>
       </div>
 
+      {saving && (
+        <div className="processing-bar" role="status" aria-live="polite" aria-busy="true" style={{ position: "static" }}>
+          <span className="spinner" aria-hidden />
+          <span>{pending.length === 1 ? "Saving point…" : `Saving ${pending.length}…`}</span>
+        </div>
+      )}
+
       <div className="pads">
         {pad(left)}
         {pad(right)}
@@ -478,7 +557,7 @@ export default function PracticeMatchPage() {
 
       <div className="sfoot">
         {timeoutBtn(left)}
-        <button className="btn" type="button" onClick={undo} disabled={!canScore || busy || match.ev.length === 0}>
+        <button className="btn" type="button" onClick={undo} disabled={!canScore || shownEv.length === 0}>
           ↶ Undo
         </button>
         {timeoutBtn(right)}
@@ -517,7 +596,7 @@ export default function PracticeMatchPage() {
           onResume={
             canScore
               ? () => {
-                  score("resume");
+                  score({ kind: "resume" });
                   flash("Match resumed");
                 }
               : undefined
@@ -539,15 +618,15 @@ export default function PracticeMatchPage() {
             <button
               className="btn gold"
               type="button"
-              disabled={!canScore || busy}
+              disabled={!canScore}
               onClick={() => {
-                score("nextSet");
+                score({ kind: "nextSet" });
                 setFlip((f) => !f);
               }}
             >
               Start set {m.cur + 2}
             </button>
-            <button className="btn ghost" type="button" disabled={!canScore || busy} onClick={undo}>
+            <button className="btn ghost" type="button" disabled={!canScore} onClick={undo}>
               ↶ Undo last point
             </button>
           </div>

@@ -68,8 +68,8 @@ export function BestPlayerPicker({
       {curPlayer && curTeam ? (
         <p className="note" style={{ margin: 0 }}>
           Selected: <b>{curPlayer.name}</b> ({curTeam.name}){" "}
-          <button className="btn ghost" type="button" disabled={busy} onClick={() => save(null)} style={{ padding: "4px 10px" }}>
-            Clear
+          <button className="btn ghost" type="button" disabled={busy} aria-busy={busy} onClick={() => save(null)} style={{ padding: "4px 10px" }}>
+            {busy ? "Saving…" : "Clear"}
           </button>
         </p>
       ) : (
@@ -111,6 +111,7 @@ export function BestPlayerPicker({
         })}
         {filtered.length === 0 && <p className="note">No players match.</p>}
       </div>
+      {busy && !msg && <p className="note" style={{ margin: 0 }}>Saving…</p>}
       {msg && <div className="toast">{msg}</div>}
     </div>
   );

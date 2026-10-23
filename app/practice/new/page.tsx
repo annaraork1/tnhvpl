@@ -375,11 +375,11 @@ export default function NewPractice() {
       </section>
 
       <div className="row">
-        <button className="btn gold" type="button" disabled={busy} onClick={() => create("live")}>
-          Start live match
+        <button className="btn gold" type="button" disabled={busy} aria-busy={busy} onClick={() => create("live")}>
+          {busy ? "Starting…" : "Start live match"}
         </button>
-        <button className="btn" type="button" disabled={busy} onClick={() => create("quick")}>
-          Save quick result
+        <button className="btn" type="button" disabled={busy} aria-busy={busy} onClick={() => create("quick")}>
+          {busy ? "Saving…" : "Save quick result"}
         </button>
       </div>
       {msg && <div className="toast">{msg}</div>}

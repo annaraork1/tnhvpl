@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { LiveProvider } from "@/components/LiveProvider";
 import { Nav } from "@/components/Nav";
+import { ProcessingBar } from "@/components/ProcessingBar";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -33,6 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Suspense fallback={<main className="wrap"><div className="empty">Loading…</div></main>}>
           <LiveProvider>
             <Nav />
+            <ProcessingBar />
             <main className="wrap">{children}</main>
           </LiveProvider>
         </Suspense>

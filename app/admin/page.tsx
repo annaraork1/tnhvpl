@@ -36,6 +36,7 @@ function AdminInner() {
   const [players, setPlayers] = useState<Player[] | null>(null);
   const [fixtures, setFixtures] = useState<Fixture[] | null>(null);
   const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
   const [busyLogo, setBusyLogo] = useState<string | null>(null);
   const [catalog, setCatalog] = useState<MasterCatalog | null>(null);
   const [teamQuery, setTeamQuery] = useState("");
@@ -77,7 +78,10 @@ function AdminInner() {
     setTimeout(() => setMsg((x) => (x === m ? "" : x)), 2500);
   };
   const run = async (type: string, payload: Record<string, unknown>, ok: string) => {
+    if (busy) return;
+    setBusy(true);
     const r = await act(type, payload);
+    setBusy(false);
     flash(r.ok ? ok : r.error ?? "Failed");
     if (r.ok && (type === "saveTeams" || type === "saveSettings" || type === "saveFixtures" || type === "resetAll")) {
       setDraftKey(null);
@@ -458,7 +462,9 @@ function AdminInner() {
         </label>
         <p className="note">Changing set rules re-checks matches already scored with the new rules, so change them before the first match.</p>
         <div className="row">
-          <button className="btn gold" onClick={() => run("saveSettings", { settings }, "Rules saved for this tournament")}>Save rules</button>
+          <button className="btn gold" disabled={busy} aria-busy={busy} onClick={() => run("saveSettings", { settings }, "Rules saved for this tournament")}>
+            {busy ? "Saving…" : "Save rules"}
+          </button>
           <button
             className="btn ghost"
             onClick={() => {
@@ -539,9 +545,11 @@ function AdminInner() {
           <button
             className="btn gold"
             type="button"
+            disabled={busy}
+            aria-busy={busy}
             onClick={() => run("saveTeams", { teams, players }, "Teams & players saved for this tournament")}
           >
-            Save teams & players
+            {busy ? "Saving…" : "Save teams & players"}
           </button>
           <button className="btn ghost" type="button" onClick={discardTeams}>
             Discard changes
@@ -614,6 +622,8 @@ function AdminInner() {
           <div>
             <button
               className="btn gold"
+              disabled={busy}
+              aria-busy={busy}
               onClick={() =>
                 run(
                   "saveFixtures",
@@ -622,7 +632,7 @@ function AdminInner() {
                 )
               }
             >
-              Save dates & times
+              {busy ? "Saving…" : "Save dates & times"}
             </button>
           </div>
         )}
@@ -791,22 +801,26 @@ function TeamEditor({
 function ResetAll({ onDone }: { onDone: () => void }) {
   const { act } = useLive();
   const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
   return (
     <div className="row">
       <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Type RESET" aria-label="Type RESET to confirm" />
       <button
         className="btn red"
-        disabled={text !== "RESET"}
+        disabled={text !== "RESET" || busy}
+        aria-busy={busy}
         onClick={async () => {
           if (!askConfirm("Reset all scores and awards for this tournament? Structure (rules, teams, fixtures) will be kept.")) return;
+          setBusy(true);
           const r = await act("resetAll", { confirm: "RESET" });
+          setBusy(false);
           if (r.ok) {
             setText("");
             onDone();
           }
         }}
       >
-        Reset scores for this tournament
+        {busy ? "Resetting…" : "Reset scores for this tournament"}
       </button>
     </div>
   );

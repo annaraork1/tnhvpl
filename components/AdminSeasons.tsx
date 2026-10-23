@@ -176,6 +176,7 @@ export function AdminSeasons() {
           className="btn gold"
           type="button"
           disabled={busy || !key || !name}
+          aria-busy={busy}
           onClick={async () => {
             const ok = await run(
               "createTournament",
@@ -197,7 +198,7 @@ export function AdminSeasons() {
             }
           }}
         >
-          Create tournament
+          {busy ? "Creating…" : "Create tournament"}
         </button>
       </div>
       {msg && <div className="toast">{msg}</div>}

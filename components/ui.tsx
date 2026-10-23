@@ -6,9 +6,15 @@ import { formatFor, scoreLine, TIE_LABELS } from "@/lib/engine";
 import type { Fixture, MatchState, Team } from "@/lib/types";
 import { useLive } from "./LiveProvider";
 
-export function Loading() {
-  const { error } = useLive();
-  return <div className="empty">{error ?? "Loading…"}</div>;
+export function Loading({ label }: { label?: string }) {
+  const { error, loading } = useLive();
+  const text = error ?? label ?? (loading ? "Loading live data…" : "Loading…");
+  return (
+    <div className="empty" role="status" aria-busy="true" aria-live="polite">
+      <span className="spinner lg" aria-hidden />
+      <span>{text}</span>
+    </div>
+  );
 }
 
 export function Logo({ team, size = 36 }: { team?: Team; size?: number }) {
