@@ -99,6 +99,17 @@ export default function PracticeMatchPage() {
   const [updatedAt, setUpdatedAt] = useState(0);
   const scoreQueue = useRef(Promise.resolve());
   const pendingCount = useRef(0);
+  /** Highest match.v applied locally — blocks stale poll responses after a score write. */
+  const matchRev = useRef(0);
+
+  const applyMatch = useCallback((m: PracticeMatchPublic, s: MatchState | null | undefined) => {
+    matchRev.current = Math.max(matchRev.current, m.v ?? 0);
+    setMatch(m);
+    if (s !== undefined) {
+      setState(s);
+      setUpdatedAt(Date.now());
+    }
+  }, []);
 
   const reload = useCallback(async () => {
     const token = getHostToken(id);
@@ -109,13 +120,13 @@ export default function PracticeMatchPage() {
       setMatch(null);
       return;
     }
-    // Don't clobber optimistic taps still in flight.
+    // Don't clobber optimistic taps still in flight, or apply a poll that lost the race
+    // to a score write (fetch started before write, finished after pending cleared).
     if (pendingCount.current > 0) return;
-    setMatch(r.match);
-    setState(r.state);
-    setUpdatedAt(Date.now());
+    if ((r.match.v ?? 0) < matchRev.current) return;
+    applyMatch(r.match, r.state);
     setError("");
-  }, [id]);
+  }, [applyMatch, id]);
 
   useEffect(() => {
     reload();
@@ -153,14 +164,14 @@ export default function PracticeMatchPage() {
       await reload();
       return false;
     }
-    if (r.match) setMatch(r.match);
-    if (r.state) {
+    if (r.match) applyMatch(r.match, r.state ?? (r.match.status === "done" ? null : undefined));
+    else if (r.state) {
       setState(r.state);
       setUpdatedAt(Date.now());
-      if (prev && r.state.status === "done" && prev.status !== "done") {
-        fireConfetti({ intensity: "match", colors: [COLOR_A, COLOR_B, "#f5bc28", "#f5f1e6"] });
-      }
-    } else if (r.match?.status === "done") setState(null);
+    }
+    if (prev && r.state?.status === "done" && prev.status !== "done") {
+      fireConfetti({ intensity: "match", colors: [COLOR_A, COLOR_B, "#f5bc28", "#f5f1e6"] });
+    }
     return true;
   };
 
@@ -173,23 +184,26 @@ export default function PracticeMatchPage() {
         const prevStatus = state?.status;
         const r = await practiceAct({ type: "score", id, hostToken, ...scoreOpToBody(op) });
         pendingCount.current = Math.max(0, pendingCount.current - 1);
-        setPending((p) => p.slice(1));
+        // Apply server docs before dropping the optimistic op so the pad never flashes
+        // back to the pre-tap score for a frame.
         if (!r.ok) {
+          setPending((p) => p.slice(1));
           flash(r.error);
           await reload();
           return;
         }
-        if (r.match) setMatch(r.match);
-        if (r.state) {
+        if (r.match) applyMatch(r.match, r.state ?? (r.match.status === "done" ? null : undefined));
+        else if (r.state) {
           setState(r.state);
           setUpdatedAt(Date.now());
-          if (r.state.status === "done" && prevStatus !== "done") {
-            fireConfetti({ intensity: "match", colors: [COLOR_A, COLOR_B, "#f5bc28", "#f5f1e6"] });
-          }
-        } else if (r.match?.status === "done") setState(null);
+        }
+        setPending((p) => p.slice(1));
+        if (r.state?.status === "done" && prevStatus !== "done") {
+          fireConfetti({ intensity: "match", colors: [COLOR_A, COLOR_B, "#f5bc28", "#f5f1e6"] });
+        }
       });
     },
-    [hostToken, id, reload, state?.status],
+    [applyMatch, hostToken, id, reload, state?.status],
   );
 
   const shownEv = useMemo(() => {
@@ -542,13 +556,6 @@ export default function PracticeMatchPage() {
           </button>
         </div>
       </div>
-
-      {saving && (
-        <div className="processing-bar" role="status" aria-live="polite" aria-busy="true" style={{ position: "static" }}>
-          <span className="spinner" aria-hidden />
-          <span>{pending.length === 1 ? "Saving point…" : `Saving ${pending.length}…`}</span>
-        </div>
-      )}
 
       <div className="pads">
         {pad(left)}

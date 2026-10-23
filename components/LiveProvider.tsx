@@ -40,6 +40,13 @@ interface Ctx {
 const LiveCtx = createContext<Ctx | null>(null);
 const PIN_KEY = "tnhvpl-pin";
 
+/** Monotonic write watermark — match CAS `v` only rises on successful writes. */
+function matchesRevision(s: AppState): number {
+  let n = 0;
+  for (const m of Object.values(s.matches)) n += m?.v ?? 0;
+  return n;
+}
+
 function readPin() {
   try {
     return localStorage.getItem(PIN_KEY) ?? "";
@@ -87,6 +94,7 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
   const [roleReady, setRoleReady] = useState(false);
   const fastUntil = useRef(0);
   const lastServer = useRef(0);
+  const lastRev = useRef(0);
   const hold = useRef(false);
   const seasonRef = useRef(seasonParam);
   seasonRef.current = seasonParam;
@@ -153,7 +161,12 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
 
   const accept = useCallback((s: AppState, fromPoll = false) => {
     if (fromPoll && hold.current) return;
-    if (s.serverTime < lastServer.current) return;
+    const rev = matchesRevision(s);
+    // `/api/state` stamps serverTime with Date.now() on every read, so a stale poll
+    // can look "newer" while carrying older match docs — prefer CAS revision.
+    if (rev < lastRev.current) return;
+    if (rev === lastRev.current && s.serverTime < lastServer.current) return;
+    lastRev.current = rev;
     lastServer.current = s.serverTime;
     setState(s);
     hasState.current = true;
@@ -185,6 +198,7 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
   // Reset poll clock when season query changes.
   useEffect(() => {
     lastServer.current = 0;
+    lastRev.current = 0;
     hasState.current = false;
     setState(null);
     setLoading(true);
@@ -215,7 +229,10 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
 
   const act = useCallback(
     async (type: string, payload: Record<string, unknown> = {}, opts?: { noAccept?: boolean }) => {
-      setSaving((n) => n + 1);
+      // Optimistic scorers use noAccept + local pending; skip the global Saving bar
+      // so the pad doesn't jump when the strip mounts/unmounts.
+      const trackSave = !opts?.noAccept;
+      if (trackSave) setSaving((n) => n + 1);
       try {
         const season = seasonRef.current;
         const r = await fetch("/api/action", {
@@ -231,7 +248,7 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
       } catch {
         return { ok: false, error: "No connection. Your tap was not saved." };
       } finally {
-        setSaving((n) => Math.max(0, n - 1));
+        if (trackSave) setSaving((n) => Math.max(0, n - 1));
       }
     },
     [accept],

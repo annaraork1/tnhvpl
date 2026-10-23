@@ -76,7 +76,8 @@ function Console() {
       if (navigator.vibrate) navigator.vibrate(op.kind === "undo" ? [20, 40, 20] : 25);
       queue.current = queue.current.then(async () => {
         const r = await act(type, { id, ...payload }, { noAccept: true });
-        // Apply the server's answer and drop the pending tap in the same render, so nothing flickers.
+        // Apply server state before dropping the optimistic op so the pad never
+        // flashes the pre-tap score (or a full-page Loading) for a frame.
         if (r.state) accept(r.state);
         setPending((p) => p.slice(1));
         if (!r.ok) {

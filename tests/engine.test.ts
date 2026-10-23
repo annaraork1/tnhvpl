@@ -117,6 +117,16 @@ test("standings and playoff resolution", () => {
   assert.equal(st2.resolved.m13.a, st.table[0].team); // loser of Q1
   assert.equal(st2.resolved.m13.b, st.table[2].team); // winner of eliminator
   assert.equal(st2.resolved.m14.a, st.table[1].team); // winner of Q1
+  assert.equal(st2.resolved.m14.b, null); // Final waits on Q2
+
+  // Q2 then Final — champion / runner-up
+  ev.m13 = [{ k: "start", serve: "A" }, ...pts("A", 21), { k: "next" }, ...pts("A", 21)];
+  const st3 = computeAll(play(ev));
+  assert.equal(st3.resolved.m14.b, st.table[0].team); // winner of Q2
+  ev.m14 = [{ k: "start", serve: "A" }, ...pts("B", 21), { k: "next" }, ...pts("B", 21)];
+  const st4 = computeAll(play(ev));
+  assert.equal(st4.champion, st.table[0].team);
+  assert.equal(st4.runnerUp, st.table[1].team);
 });
 
 test("3-2-1-0 points option", () => {
