@@ -515,16 +515,29 @@ export default function PracticeMatchPage() {
   const toLeft = (s: Side) => fmt.timeouts - (s === "A" ? set.toA : set.toB);
   const timeoutBtn = (s: Side) => (
     <button
-      className="btn"
+      className="btn ghost timeout-mini"
       disabled={!canScore || m.status !== "live" || m.awaitingNext || inTimeout || toLeft(s) <= 0}
       onClick={() => {
         score({ kind: "timeout", side: s });
         flash(`Timeout ${name(s)}`);
       }}
+      aria-label={`Timeout ${name(s)}, ${toLeft(s)} left`}
     >
-      Timeout {s} · {toLeft(s)} left
+      TO {s} · {toLeft(s)}
     </button>
   );
+
+  const abandonLive = async () => {
+    if (!askConfirm("Abandon this practice? It will not be saved to history.")) return;
+    const pin = isAdmin && !isHost ? adminPin || window.prompt("Admin PIN") || "" : undefined;
+    const ok = await act({ type: "abandon" }, pin);
+    if (ok) {
+      clearHostToken(id);
+      router.push("/practice");
+    }
+  };
+
+  const showAbandon = isHost || isAdmin;
 
   return (
     <div className="scorer">
@@ -562,33 +575,18 @@ export default function PracticeMatchPage() {
         {pad(right)}
       </div>
 
-      <div className="sfoot">
+      <div className={`sfoot${showAbandon ? " sfoot-with-abandon" : ""}`}>
         {timeoutBtn(left)}
         <button className="btn" type="button" onClick={undo} disabled={!canScore || shownEv.length === 0}>
           ↶ Undo
         </button>
+        {showAbandon && (
+          <button className="btn red" type="button" disabled={busy} onClick={() => void abandonLive()}>
+            Abandon
+          </button>
+        )}
         {timeoutBtn(right)}
       </div>
-
-      {(isHost || isAdmin) && (
-        <button
-          className="btn red"
-          type="button"
-          style={{ position: "fixed", top: "calc(env(safe-area-inset-top) + 56px)", right: 12, zIndex: 20 }}
-          disabled={busy}
-          onClick={async () => {
-            if (!askConfirm("Abandon this practice? It will not be saved to history.")) return;
-            const pin = isAdmin && !isHost ? adminPin || window.prompt("Admin PIN") || "" : undefined;
-            const ok = await act({ type: "abandon" }, pin);
-            if (ok) {
-              clearHostToken(id);
-              router.push("/practice");
-            }
-          }}
-        >
-          Abandon
-        </button>
-      )}
 
       {m.switchNow && !inTimeout && <div className="switchnote">Switch sides!</div>}
 
