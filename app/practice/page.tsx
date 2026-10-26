@@ -3,17 +3,23 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ClientTime } from "@/components/ClientTime";
+import { useLive } from "@/components/LiveProvider";
 import { PracticeLiveScore } from "@/components/PracticeLiveScore";
 import { Loading } from "@/components/ui";
-import { fetchPracticeBoard, type PracticeLiveBoardItem } from "@/lib/practiceApi";
-import { getHostToken, listOpenHostIds } from "@/lib/practiceHost";
+import { askConfirm } from "@/lib/confirm";
+import { fetchPracticeBoard, practiceAct, type PracticeLiveBoardItem } from "@/lib/practiceApi";
+import { clearHostToken, getHostToken, listOpenHostIds } from "@/lib/practiceHost";
 import type { PracticeSummary } from "@/lib/practiceTypes";
 
 export default function PracticeHome() {
+  const { role, pin, roleReady } = useLive();
+  const isAdmin = role === "admin";
   const [matches, setMatches] = useState<PracticeSummary[] | null>(null);
   const [live, setLive] = useState<PracticeLiveBoardItem[]>([]);
   const [openIds, setOpenIds] = useState<string[]>([]);
   const [error, setError] = useState("");
+  const [msg, setMsg] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState(0);
 
   const reload = useCallback(async () => {
@@ -36,6 +42,33 @@ export default function PracticeHome() {
     return () => clearInterval(t);
   }, [reload]);
 
+  const flash = (m: string) => {
+    setMsg(m);
+    setTimeout(() => setMsg((x) => (x === m ? "" : x)), 2800);
+  };
+
+  const abandonAsAdmin = async (id: string, label: string) => {
+    if (!askConfirm(`Abandon ${label}? It will not be saved to history.`)) return;
+    const adminPin =
+      (pin || (typeof window !== "undefined" ? localStorage.getItem("tnhvpl-pin") : "") || "").trim() ||
+      window.prompt("Admin PIN") ||
+      "";
+    if (!adminPin.trim()) {
+      flash("Admin PIN required");
+      return;
+    }
+    setBusyId(id);
+    const r = await practiceAct({ type: "abandon", id }, { pin: adminPin.trim() });
+    setBusyId(null);
+    if (!r.ok) {
+      flash(r.error);
+      return;
+    }
+    clearHostToken(id);
+    flash("Practice abandoned");
+    await reload();
+  };
+
   if (!matches) return <Loading />;
 
   const hostOpen = openIds.filter((id) => {
@@ -53,22 +86,49 @@ export default function PracticeHome() {
       </div>
       <p className="note">
         Practice matches are separate from tournaments. Anyone can watch live practices here; only the host (or
-        public scoring, if enabled) can score. Abandoned matches are not kept in history.
+        public scoring, if enabled) can score. Hosts and admins can abandon open practices — abandoned matches are
+        not kept in history.
       </p>
       {error && <p className="error">{error}</p>}
+      {msg && <div className="toast">{msg}</div>}
 
       {live.length > 0 ? (
         <section className="stack">
           <h2>Live now</h2>
-          {live.map(({ match, state }) => (
-            <PracticeLiveScore
-              key={match.id}
-              match={match}
-              state={state}
-              updatedAt={updatedAt}
-              serverTime={Date.now()}
-            />
-          ))}
+          {live.map(({ match, state }) => {
+            const label = `${match.labelA} vs ${match.labelB}`;
+            const iAmHost = Boolean(getHostToken(match.id));
+            return (
+              <div key={match.id} className="stack" style={{ gap: 8 }}>
+                <PracticeLiveScore
+                  match={match}
+                  state={state}
+                  updatedAt={updatedAt}
+                  serverTime={Date.now()}
+                />
+                {roleReady && isAdmin && (
+                  <div className="row" style={{ justifyContent: "flex-end", flexWrap: "wrap", gap: 8 }}>
+                    {!iAmHost && (
+                      <span className="muted" style={{ fontSize: 13, marginRight: "auto" }}>
+                        Guest practice · admin can abandon
+                      </span>
+                    )}
+                    <Link className="btn ghost" href={`/practice/${match.id}`}>
+                      Open
+                    </Link>
+                    <button
+                      className="btn red"
+                      type="button"
+                      disabled={busyId === match.id}
+                      onClick={() => void abandonAsAdmin(match.id, label)}
+                    >
+                      {busyId === match.id ? "Abandoning…" : iAmHost ? "Abandon" : "Abandon (admin)"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </section>
       ) : (
         <section className="card stack">

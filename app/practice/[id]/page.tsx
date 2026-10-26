@@ -231,6 +231,9 @@ export default function PracticeMatchPage() {
   const isHost = Boolean(hostToken && match.isHost);
   const canScore = isHost || match.allowPublicScore;
   const isAdmin = role === "admin";
+  /** Admin abandon of guest/host matches needs x-pin; prefer staff session PIN. */
+  const adminPinForAct = () =>
+    (adminPin || live.pin || (typeof window !== "undefined" ? localStorage.getItem("tnhvpl-pin") : "") || "").trim();
   const color = (s: Side) => (s === "A" ? COLOR_A : COLOR_B);
 
   const confettiColors = [COLOR_A, COLOR_B, "#f5bc28", "#f5f1e6"];
@@ -465,7 +468,14 @@ export default function PracticeMatchPage() {
                 disabled={busy}
                 onClick={async () => {
                   if (!askConfirm("Abandon this practice? It will not be saved to history.")) return;
-                  const pin = isAdmin && !isHost ? adminPin || window.prompt("Admin PIN") || "" : undefined;
+                  let pin: string | undefined;
+                  if (isAdmin && !isHost) {
+                    pin = adminPinForAct() || window.prompt("Admin PIN") || "";
+                    if (!pin.trim()) {
+                      flash("Admin PIN required to abandon a guest practice");
+                      return;
+                    }
+                  }
                   const ok = await act({ type: "abandon" }, pin);
                   if (ok) {
                     clearHostToken(id);
@@ -473,7 +483,7 @@ export default function PracticeMatchPage() {
                   }
                 }}
               >
-                Abandon
+                {isAdmin && !isHost ? "Abandon (admin)" : "Abandon"}
               </button>
             )}
           </div>
@@ -529,7 +539,14 @@ export default function PracticeMatchPage() {
 
   const abandonLive = async () => {
     if (!askConfirm("Abandon this practice? It will not be saved to history.")) return;
-    const pin = isAdmin && !isHost ? adminPin || window.prompt("Admin PIN") || "" : undefined;
+    let pin: string | undefined;
+    if (isAdmin && !isHost) {
+      pin = adminPinForAct() || window.prompt("Admin PIN") || "";
+      if (!pin.trim()) {
+        flash("Admin PIN required to abandon a guest practice");
+        return;
+      }
+    }
     const ok = await act({ type: "abandon" }, pin);
     if (ok) {
       clearHostToken(id);
@@ -581,8 +598,14 @@ export default function PracticeMatchPage() {
           ↶ Undo
         </button>
         {showAbandon && (
-          <button className="btn red" type="button" disabled={busy} onClick={() => void abandonLive()}>
-            Abandon
+          <button
+            className="btn red"
+            type="button"
+            disabled={busy}
+            onClick={() => void abandonLive()}
+            title={isAdmin && !isHost ? "Admin: abandon guest practice" : undefined}
+          >
+            {isAdmin && !isHost ? "Abandon (admin)" : "Abandon"}
           </button>
         )}
         {timeoutBtn(right)}
