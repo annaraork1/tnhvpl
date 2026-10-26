@@ -903,6 +903,11 @@ function validateSettings(s: Settings): string | null {
     if (!f || ![1, 3, 5].includes(f.bestOf)) return "Best of must be 1, 3 or 5";
     if (!Array.isArray(f.targets) || !f.targets.length || f.targets.some((n) => !Number.isInteger(n) || n < 1 || n > 99))
       return "Set targets must be whole numbers";
+    if (f.targets.length > f.bestOf) {
+      return f.bestOf === 1
+        ? "Best of 1 needs a single points-per-set value"
+        : `Best of ${f.bestOf} allows at most ${f.bestOf} set targets`;
+    }
     if (!Number.isInteger(f.winBy) || f.winBy < 1 || f.winBy > 5) return "Win by must be 1–5";
     if (!Number.isInteger(f.cap) || f.cap < 0) return "Cap must be 0 (none) or a score";
     if (f.cap > 0 && f.cap < Math.max(...f.targets)) return "Cap must be higher than the set target";

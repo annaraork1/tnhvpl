@@ -1,16 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import { LiveProvider } from "@/components/LiveProvider";
 import { Nav } from "@/components/Nav";
 import { ProcessingBar } from "@/components/ProcessingBar";
+import { PwaRegister } from "@/components/PwaRegister";
+import { loadState } from "@/lib/store";
 import "./globals.css";
-
-export const metadata: Metadata = {
-  title: "TNHVPL",
-  description: "Live scores, fixtures and points table for TNH Volleyball",
-  manifest: "/manifest.webmanifest",
-  icons: { icon: "/icon-192.png", apple: "/icon-192.png" },
-};
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -18,6 +14,37 @@ export const viewport: Viewport = {
   themeColor: "#070B16",
   viewportFit: "cover",
 };
+
+export async function generateMetadata(): Promise<Metadata> {
+  let title = "TNHVPL";
+  let appleTitle = "TNHVPL";
+  try {
+    const state = await loadState();
+    title = state.meta?.name || state.config.tournament.name || title;
+    appleTitle = state.meta?.short || state.config.tournament.short || appleTitle;
+  } catch {
+    /* cold start */
+  }
+
+  return {
+    title,
+    description: "Live scores, fixtures and points table for TNH Volleyball",
+    applicationName: title,
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "black-translucent",
+      title: appleTitle,
+    },
+    formatDetection: { telephone: false },
+    icons: {
+      icon: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
+      apple: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
+    },
+    other: {
+      "mobile-web-app-capable": "yes",
+    },
+  };
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -36,6 +63,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Nav />
             <ProcessingBar />
             <main className="wrap">{children}</main>
+            <InstallPrompt />
+            <PwaRegister />
           </LiveProvider>
         </Suspense>
       </body>

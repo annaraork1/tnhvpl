@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/standings", label: "Table" },
   { href: "/teams", label: "Teams" },
   { href: "/awards", label: "Awards" },
+  { href: "/staff", label: "Staff" },
   { href: "/practice", label: "Practice" },
   { href: "/seasons", label: "Seasons" },
   { href: "/rules", label: "Rules" },
@@ -48,7 +49,9 @@ export function Nav() {
                 ? path === "/practice" || path.startsWith("/practice/")
                 : l.href === "/seasons"
                   ? path === "/seasons"
-                  : path === l.href;
+                  : l.href === "/staff"
+                    ? path === "/staff" || path.startsWith("/staff/")
+                    : path === l.href;
             return (
               <Link key={l.href} href={href} className={on ? "on" : ""}>
                 {l.label}

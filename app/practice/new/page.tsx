@@ -10,9 +10,11 @@ import {
   type CatalogTeam,
   type MasterCatalog,
 } from "@/lib/catalog";
+import { TargetsPerSetInput } from "@/components/TargetsPerSetInput";
 import { practiceAct } from "@/lib/practiceApi";
 import { saveHostToken } from "@/lib/practiceHost";
 import { defaultPracticeFormat, type PracticePlayer } from "@/lib/practiceTypes";
+import { targetsFitBestOf, trimTargetsToBestOf } from "@/lib/targetsInput";
 import { DEFAULT_LOGO } from "@/lib/tournaments";
 import type { Format } from "@/lib/types";
 
@@ -308,7 +310,17 @@ export default function NewPractice() {
         <div className="fields">
           <label>
             Best of
-            <select value={format.bestOf} onChange={(e) => setFormat({ ...format, bestOf: Number(e.target.value) })}>
+            <select
+              value={format.bestOf}
+              onChange={(e) => {
+                const bestOf = Number(e.target.value);
+                setFormat({
+                  ...format,
+                  bestOf,
+                  targets: trimTargetsToBestOf(bestOf, format.targets),
+                });
+              }}
+            >
               {[1, 3, 5].map((n) => (
                 <option key={n} value={n}>
                   {n}
@@ -318,18 +330,10 @@ export default function NewPractice() {
           </label>
           <label>
             Points per set
-            <input
-              value={format.targets.join(",")}
-              onChange={(e) =>
-                setFormat({
-                  ...format,
-                  targets: e.target.value
-                    .split(/[,\s-]+/)
-                    .filter(Boolean)
-                    .map(Number)
-                    .filter((n) => n > 0),
-                })
-              }
+            <TargetsPerSetInput
+              value={format.targets}
+              bestOf={format.bestOf}
+              onChange={(targets) => setFormat({ ...format, targets })}
             />
           </label>
         </div>
@@ -375,10 +379,22 @@ export default function NewPractice() {
       </section>
 
       <div className="row">
-        <button className="btn gold" type="button" disabled={busy} aria-busy={busy} onClick={() => create("live")}>
+        <button
+          className="btn gold"
+          type="button"
+          disabled={busy || !!targetsFitBestOf(format.bestOf, format.targets)}
+          aria-busy={busy}
+          onClick={() => create("live")}
+        >
           {busy ? "Starting…" : "Start live match"}
         </button>
-        <button className="btn" type="button" disabled={busy} aria-busy={busy} onClick={() => create("quick")}>
+        <button
+          className="btn"
+          type="button"
+          disabled={busy || !!targetsFitBestOf(format.bestOf, format.targets)}
+          aria-busy={busy}
+          onClick={() => create("quick")}
+        >
           {busy ? "Saving…" : "Save quick result"}
         </button>
       </div>
