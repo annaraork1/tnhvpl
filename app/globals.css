@@ -75,6 +75,26 @@ button:disabled.busy-pulse {
 }
 .sechead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
 .sechead a { color: var(--gold); font-size: 14px; font-weight: 600; }
+.home-title { align-items: center; gap: 12px; }
+.home-title h1 { flex: 1; min-width: 0; }
+.install-app-wrap { position: relative; flex: none; }
+.install-app-btn { padding: 8px 12px; font-size: 13px; white-space: nowrap; }
+.install-app-hint {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  width: min(260px, 70vw);
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
 
 /* nav */
 .nav { position: sticky; top: 0; z-index: 10; background: rgba(7, 11, 22, 0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); padding-top: env(safe-area-inset-top); }

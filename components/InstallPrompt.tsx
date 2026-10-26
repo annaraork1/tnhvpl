@@ -1,32 +1,47 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  captureInstallPromptEarly,
+  clearDeferredInstall,
+  getDeferredInstall,
+  isIosSafari,
+  isStandalone,
+  onCanInstall,
+  type BeforeInstallPromptEvent,
+} from "@/lib/pwaInstall";
 import { useLive } from "./LiveProvider";
 
-const DISMISS_KEY = "tnhvpl-pwa-dismiss";
+const DISMISS_KEY = "tnhvpl-pwa-dismiss-until";
+/** After "Not now", wait this long before showing the banner again. */
+const DISMISS_MS = 7 * 24 * 60 * 60 * 1000;
 
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-};
-
-function isStandalone(): boolean {
-  if (typeof window === "undefined") return true;
-  const mq = window.matchMedia("(display-mode: standalone)").matches;
-  const ios = "standalone" in navigator && (navigator as Navigator & { standalone?: boolean }).standalone;
-  return mq || !!ios;
+function isDismissed(): boolean {
+  try {
+    // Older builds used a permanent flag — convert to a short cooldown so prompt can return.
+    const legacy = localStorage.getItem("tnhvpl-pwa-dismiss");
+    if (legacy === "1") {
+      localStorage.removeItem("tnhvpl-pwa-dismiss");
+      localStorage.setItem(DISMISS_KEY, String(Date.now() + DISMISS_MS));
+    }
+    const raw = localStorage.getItem(DISMISS_KEY);
+    if (!raw) return false;
+    const until = Number(raw);
+    return Number.isFinite(until) && Date.now() < until;
+  } catch {
+    return true;
+  }
 }
 
-function isIosSafari(): boolean {
-  if (typeof navigator === "undefined") return false;
-  const ua = navigator.userAgent;
-  const iOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  const webkit = /WebKit/.test(ua);
-  const notChrome = !/CriOS|FxiOS|EdgiOS/.test(ua);
-  return iOS && webkit && notChrome;
+function setDismissed(days = 7) {
+  try {
+    localStorage.setItem(DISMISS_KEY, String(Date.now() + (days > 0 ? days * 24 * 60 * 60 * 1000 : DISMISS_MS)));
+  } catch {
+    /* ignore */
+  }
 }
 
-/** Banner: Android uses beforeinstallprompt; iOS shows Add to Home Screen tips. Hidden once installed or dismissed. */
+/** Banner: Android/Chrome uses beforeinstallprompt; iOS Safari shows Add to Home Screen tips. */
 export function InstallPrompt() {
   const { state } = useLive();
   const appLabel = state?.meta?.short || state?.config.tournament.short || "TNHVPL";
@@ -35,28 +50,24 @@ export function InstallPrompt() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (isStandalone()) return;
-    try {
-      if (localStorage.getItem(DISMISS_KEY) === "1") return;
-    } catch {
-      return;
-    }
+    captureInstallPromptEarly();
+    if (isStandalone() || isDismissed()) return;
 
-    const onBip = (e: Event) => {
-      e.preventDefault();
-      setDeferred(e as BeforeInstallPromptEvent);
-      setVisible(true);
+    const sync = () => {
+      const ev = getDeferredInstall();
+      if (ev) {
+        setDeferred(ev);
+        setVisible(true);
+      }
     };
-    window.addEventListener("beforeinstallprompt", onBip);
+    sync();
+    const off = onCanInstall(sync);
 
     const onInstalled = () => {
       setVisible(false);
       setDeferred(null);
-      try {
-        localStorage.setItem(DISMISS_KEY, "1");
-      } catch {
-        /* ignore */
-      }
+      clearDeferredInstall();
+      setDismissed(3650);
     };
     window.addEventListener("appinstalled", onInstalled);
 
@@ -66,7 +77,7 @@ export function InstallPrompt() {
     }
 
     return () => {
-      window.removeEventListener("beforeinstallprompt", onBip);
+      off();
       window.removeEventListener("appinstalled", onInstalled);
     };
   }, []);
@@ -74,11 +85,7 @@ export function InstallPrompt() {
   const dismiss = () => {
     setVisible(false);
     setDeferred(null);
-    try {
-      localStorage.setItem(DISMISS_KEY, "1");
-    } catch {
-      /* ignore */
-    }
+    setDismissed(7);
   };
 
   const install = async () => {
@@ -86,14 +93,9 @@ export function InstallPrompt() {
     await deferred.prompt();
     const { outcome } = await deferred.userChoice;
     setDeferred(null);
+    clearDeferredInstall();
     setVisible(false);
-    if (outcome === "accepted") {
-      try {
-        localStorage.setItem(DISMISS_KEY, "1");
-      } catch {
-        /* ignore */
-      }
-    }
+    if (outcome === "accepted") setDismissed(3650);
   };
 
   if (!visible) return null;

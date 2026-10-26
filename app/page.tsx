@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { AwardsGrid } from "@/components/AwardsGrid";
+import { InstallAppButton } from "@/components/InstallAppButton";
 import { useLive } from "@/components/LiveProvider";
 import { LiveScore } from "@/components/LiveScore";
 import { StageHomeCta } from "@/components/StageHomeCta";
@@ -26,7 +27,10 @@ export default function Home() {
     <>
       <section className="stack">
         <span className="kicker">{state.config.tournament.subtitle} · {state.config.tournament.dates}</span>
-        <h1>{state.config.tournament.name}</h1>
+        <div className="sechead home-title">
+          <h1>{state.config.tournament.name}</h1>
+          <InstallAppButton />
+        </div>
       </section>
 
       {live.length > 0 ? (
