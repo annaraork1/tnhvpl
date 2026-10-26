@@ -155,12 +155,13 @@ function sanitizeFormat(f: unknown): Format {
   if (!f || typeof f !== "object") return d;
   const x = f as Format;
   const bestOf = [1, 3, 5].includes(Number(x.bestOf)) ? Number(x.bestOf) : d.bestOf;
-  const targets = Array.isArray(x.targets)
+  const rawTargets = Array.isArray(x.targets)
     ? x.targets.map(Number).filter((n) => Number.isInteger(n) && n > 0 && n < 100)
     : d.targets;
+  const targets = (rawTargets.length ? rawTargets : d.targets).slice(0, bestOf);
   return {
     bestOf,
-    targets: targets.length ? targets : d.targets,
+    targets: targets.length ? targets : d.targets.slice(0, bestOf),
     winBy: Number.isInteger(x.winBy) && x.winBy >= 1 && x.winBy <= 5 ? x.winBy : d.winBy,
     cap: Number.isInteger(x.cap) && x.cap >= 0 ? x.cap : d.cap,
     timeouts: Number.isInteger(x.timeouts) && x.timeouts >= 0 && x.timeouts <= 5 ? x.timeouts : d.timeouts,

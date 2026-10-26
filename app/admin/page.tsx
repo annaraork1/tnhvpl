@@ -5,7 +5,9 @@ import { useEffect, useMemo, useState } from "react";
 import { AdminSeasons } from "@/components/AdminSeasons";
 import { AdminStageBar } from "@/components/AdminStageBar";
 import { useLive } from "@/components/LiveProvider";
+import { TargetsPerSetInput } from "@/components/TargetsPerSetInput";
 import { Loading, PinGate } from "@/components/ui";
+import { targetsFitBestOf, trimTargetsToBestOf } from "@/lib/targetsInput";
 import {
   filterCatalogPlayers,
   filterCatalogTeams,
@@ -131,8 +133,18 @@ function AdminInner() {
     return r.ok;
   };
 
-  const setFmt = (which: "league" | "playoff", patch: Partial<Format>) =>
-    setSettings({ ...settings, [which]: { ...settings[which], ...patch } });
+  const setFmt = (which: "league" | "playoff", patch: Partial<Format>) => {
+    const cur = settings[which];
+    const next = { ...cur, ...patch };
+    if (patch.bestOf != null && patch.targets == null) {
+      next.targets = trimTargetsToBestOf(next.bestOf, next.targets);
+    }
+    setSettings({ ...settings, [which]: next });
+  };
+
+  const formatError =
+    targetsFitBestOf(settings.league.bestOf, settings.league.targets) ||
+    targetsFitBestOf(settings.playoff.bestOf, settings.playoff.targets);
 
   const keys = resultKeys(settings.league);
   const preset = (kind: "2-0" | "321") => {
@@ -279,12 +291,10 @@ function AdminInner() {
           </label>
           <label>
             Points per set
-            <input
-              value={f.targets.join(",")}
-              onChange={(e) =>
-                setFmt(which, { targets: e.target.value.split(/[,\s-]+/).filter(Boolean).map(Number).filter((n) => n > 0) })
-              }
-              placeholder="21,21,15"
+            <TargetsPerSetInput
+              value={f.targets}
+              bestOf={f.bestOf}
+              onChange={(targets) => setFmt(which, { targets })}
             />
           </label>
           <label>
@@ -621,7 +631,13 @@ function AdminInner() {
         </label>
         <p className="note">Changing set rules re-checks matches already scored with the new rules, so change them before the first match.</p>
         <div className="row">
-          <button className="btn gold" disabled={busy} aria-busy={busy} onClick={() => run("saveSettings", { settings }, "Rules saved for this tournament")}>
+          {formatError && <p className="error">{formatError}</p>}
+          <button
+            className="btn gold"
+            disabled={busy || !!formatError}
+            aria-busy={busy}
+            onClick={() => run("saveSettings", { settings }, "Rules saved for this tournament")}
+          >
             {busy ? "Saving…" : "Save rules"}
           </button>
           <button

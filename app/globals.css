@@ -99,6 +99,38 @@ button:disabled.busy-pulse {
 .role-toggle button { border: 0; background: transparent; border-radius: 10px; padding: 10px 12px; font-family: var(--display); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
 .role-toggle button.on { background: var(--gold); color: var(--bg); }
 .staff-card { min-width: 0; }
+
+/* PWA install banner */
+.install-banner {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 80;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+.install-banner-body { flex: 1; min-width: 160px; }
+.install-banner-body strong {
+  display: block;
+  font-family: var(--display);
+  font-size: 18px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.install-banner-body p { margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 1.35; }
+.install-banner-actions { display: flex; gap: 8px; flex: none; }
+@media (display-mode: standalone) {
+  .install-banner { display: none; }
+}
 .share-row { justify-content: flex-end; margin-top: -4px; gap: 4px; }
 .share-row .btn { padding: 8px 12px; font-size: 14px; }
 .pill { display: inline-block; font-family: var(--display); font-weight: 700; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 10px; border-radius: 999px; }

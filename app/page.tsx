@@ -4,7 +4,7 @@ import Link from "next/link";
 import { AwardsGrid } from "@/components/AwardsGrid";
 import { useLive } from "@/components/LiveProvider";
 import { LiveScore } from "@/components/LiveScore";
-import { StaffLogin } from "@/components/StaffLogin";
+import { StageHomeCta } from "@/components/StageHomeCta";
 import { Loading, MatchRow, StandingsTable } from "@/components/ui";
 import { emptyAwards, filledAwards } from "@/lib/awards";
 
@@ -29,7 +29,23 @@ export default function Home() {
         <h1>{state.config.tournament.name}</h1>
       </section>
 
-      <StaffLogin />
+      {live.length > 0 ? (
+        <section className="stack">
+          <h2>Live now</h2>
+          {live.map((f) => (
+            <LiveScore key={f.id} fx={f} />
+          ))}
+        </section>
+      ) : (
+        upcoming[0] && (
+          <section className="stack">
+            <h2>Next match</h2>
+            <LiveScore fx={upcoming[0]} />
+          </section>
+        )
+      )}
+
+      <StageHomeCta />
 
       {champ && (
         <div className="podium">
@@ -56,22 +72,6 @@ export default function Home() {
           </div>
           <AwardsGrid awards={awards} emptyNote="Awards will appear here once announced." />
         </section>
-      )}
-
-      {live.length > 0 ? (
-        <section className="stack">
-          <h2>Live now</h2>
-          {live.map((f) => (
-            <LiveScore key={f.id} fx={f} />
-          ))}
-        </section>
-      ) : (
-        upcoming[0] && (
-          <section className="stack">
-            <h2>Next match</h2>
-            <LiveScore fx={upcoming[0]} />
-          </section>
-        )
       )}
 
       <div className="grid2">
