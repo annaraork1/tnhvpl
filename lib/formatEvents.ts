@@ -65,14 +65,25 @@ export function formatEventLog(
       a = 0;
       b = 0;
       push(`Match started — ${sideName(e.serve, labelA, labelB)} serves first`, e.t);
-    } else if (e.k === "pt") {
-      if (e.s === "A") a++;
+    } else if (e.k === "pt" || e.k === "adj") {
+      if (e.k === "adj") {
+        if (e.n === 1) {
+          if (e.s === "A") a++;
+          else b++;
+        } else if (e.s === "A" && a > 0) a--;
+        else if (e.s === "B" && b > 0) b--;
+      } else if (e.s === "A") a++;
       else b++;
       const target = targetFor(f, setIndex);
       const w = setWon(a, b, target, f);
       if (w) {
         push(
           `Set ${setIndex + 1} won by ${sideName(w, labelA, labelB)} ${Math.max(a, b)}–${Math.min(a, b)}`,
+          e.t,
+        );
+      } else if (e.k === "adj") {
+        push(
+          `Adjust ${e.n > 0 ? "+" : "−"}1 — ${sideName(e.s, labelA, labelB)} (${a}–${b}) · Set ${setIndex + 1}`,
           e.t,
         );
       } else {

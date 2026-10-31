@@ -7,6 +7,7 @@ import { ClientTime } from "@/components/ClientTime";
 import { fireConfetti, WinConfetti } from "@/components/Confetti";
 import { PracticeLiveScore } from "@/components/PracticeLiveScore";
 import { PressureBallBadge } from "@/components/PressureBallBadge";
+import { ScoreAdjust } from "@/components/ScoreAdjust";
 import { ShareMatch } from "@/components/ShareMatch";
 import { TimeoutOverlay } from "@/components/TimeoutOverlay";
 import { WhistleButton } from "@/components/WhistleButton";
@@ -19,11 +20,13 @@ import { fetchPractice, practiceAct } from "@/lib/practiceApi";
 import { clearHostToken, getHostToken } from "@/lib/practiceHost";
 import type { PracticeMatchPublic } from "@/lib/practiceTypes";
 import { pressureBallForSide } from "@/lib/pressureBall";
+import { adjustEvent } from "@/lib/scoreAdjust";
 import type { MatchEvent, MatchState, Side } from "@/lib/types";
 
 type ScoreOp =
   | { kind: "start"; serve: Side }
   | { kind: "point"; side: Side }
+  | { kind: "adjust"; side: Side; delta: 1 | -1 }
   | { kind: "timeout"; side: Side }
   | { kind: "resume" }
   | { kind: "nextSet" }
@@ -39,6 +42,7 @@ function applyScoreOp(ev: MatchEvent[], op: ScoreOp): MatchEvent[] {
   if (op.kind === "start") return [{ k: "start", serve: op.serve, t }];
   const next = [...ev];
   if (op.kind === "point") next.push({ k: "pt", s: op.side, t });
+  else if (op.kind === "adjust") next.push(adjustEvent(op.side, op.delta, t));
   else if (op.kind === "timeout") next.push({ k: "to", s: op.side, t });
   else if (op.kind === "resume") next.push({ k: "resume", t });
   else if (op.kind === "nextSet") next.push({ k: "next", t });
@@ -49,6 +53,7 @@ function scoreOpToBody(op: ScoreOp): Record<string, unknown> {
   if (op.kind === "undo") return { action: "undo" };
   if (op.kind === "start") return { action: "start", serve: op.serve };
   if (op.kind === "point") return { action: "point", side: op.side };
+  if (op.kind === "adjust") return { action: "adjust", side: op.side, delta: op.delta };
   if (op.kind === "timeout") return { action: "timeout", side: op.side };
   if (op.kind === "resume") return { action: "resume" };
   return { action: "nextSet" };
@@ -493,32 +498,48 @@ export default function PracticeMatchPage() {
     );
   }
 
+  const canPlus = canScore && m.status === "live" && !m.awaitingNext && !inTimeout;
+  const canMinusSide = (s: Side) =>
+    canScore && !inTimeout && m.status !== "scheduled" && (s === "A" ? set.a : set.b) > 0;
+  /** Big pad: real rally point (changes serve). */
+  const rallyPoint = (s: Side) => score({ kind: "point", side: s });
+  /** Adjust row: score only — serve stays put. */
+  const adjustScore = (s: Side, delta: 1 | -1) => score({ kind: "adjust", side: s, delta });
+
   const pad = (s: Side) => {
     const pts = s === "A" ? set.a : set.b;
     const sets = s === "A" ? m.setsA : m.setsB;
-    const blocked = !canScore || m.status !== "live" || m.awaitingNext || inTimeout;
+    const blocked = !canPlus;
     const pressure =
       m.status === "live" && !m.awaitingNext && !inTimeout
         ? pressureBallForSide(s, set.a, set.b, set.target, fmt, m.setsA, m.setsB)
         : null;
     return (
-      <button
-        className="pad"
-        style={{ ["--tc" as string]: color(s) }}
-        disabled={blocked}
-        onClick={() => score({ kind: "point", side: s })}
-        aria-label={`Point to ${name(s)}`}
-      >
-        <span className="pteam">
-          <SideMark side={s} label={name(s)} size={48} />
-          <span className="pname">{name(s)}</span>
-          <PressureBallBadge kind={pressure} />
-        </span>
-        <span className="ppts">{pts}</span>
-        <span className="pset">
-          {m.serve === s && !blocked ? <b className="ball">🏐 Serving · </b> : null}Sets {sets}
-        </span>
-      </button>
+      <div className="pad-col" style={{ ["--tc" as string]: color(s) }}>
+        <button
+          className="pad"
+          disabled={blocked}
+          onClick={() => rallyPoint(s)}
+          aria-label={`Point to ${name(s)}`}
+        >
+          <span className="pteam">
+            <SideMark side={s} label={name(s)} size={48} />
+            <span className="pname">{name(s)}</span>
+            <PressureBallBadge kind={pressure} />
+          </span>
+          <span className="ppts">{pts}</span>
+          <span className="pset">
+            {m.serve === s && !blocked ? <b className="ball">🏐 Serving · </b> : null}Sets {sets}
+          </span>
+        </button>
+        <ScoreAdjust
+          sideLabel={name(s)}
+          canMinus={canMinusSide(s)}
+          canPlus={canPlus}
+          onMinus={() => adjustScore(s, -1)}
+          onPlus={() => adjustScore(s, 1)}
+        />
+      </div>
     );
   };
 
@@ -584,6 +605,18 @@ export default function PracticeMatchPage() {
           <button className="btn ghost" type="button" onClick={() => setFlip((f) => !f)} aria-label="Swap sides on screen">
             ⇄
           </button>
+          {showAbandon && (
+            <button
+              className="btn red"
+              type="button"
+              disabled={busy}
+              onClick={() => void abandonLive()}
+              title={isAdmin && !isHost ? "Admin: abandon guest practice" : "Abandon this practice (not saved)"}
+              aria-label={isAdmin && !isHost ? "Abandon practice as admin" : "Abandon practice"}
+            >
+              {isAdmin && !isHost ? "Drop (admin)" : "Drop"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -592,22 +625,11 @@ export default function PracticeMatchPage() {
         {pad(right)}
       </div>
 
-      <div className={`sfoot${showAbandon ? " sfoot-with-abandon" : ""}`}>
+      <div className="sfoot">
         {timeoutBtn(left)}
         <button className="btn" type="button" onClick={undo} disabled={!canScore || shownEv.length === 0}>
           ↶ Undo
         </button>
-        {showAbandon && (
-          <button
-            className="btn red"
-            type="button"
-            disabled={busy}
-            onClick={() => void abandonLive()}
-            title={isAdmin && !isHost ? "Admin: abandon guest practice" : undefined}
-          >
-            {isAdmin && !isHost ? "Abandon (admin)" : "Abandon"}
-          </button>
-        )}
         {timeoutBtn(right)}
       </div>
 

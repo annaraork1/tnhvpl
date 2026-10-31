@@ -249,6 +249,8 @@ export interface Registry {
 export type MatchEvent =
   | { k: "start"; serve: Side; t?: number }
   | { k: "pt"; s: Side; t?: number }
+  /** Score correction only — does not change serve. n is +1 or −1. */
+  | { k: "adj"; s: Side; n: 1 | -1; t?: number }
   | { k: "to"; s: Side; t?: number }
   | { k: "resume"; t?: number }
   | { k: "next"; t?: number };

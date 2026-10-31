@@ -15,6 +15,7 @@ import {
   updatePracticeEvents,
   verifyHost,
 } from "@/lib/practiceStore";
+import { adjustEvent } from "@/lib/scoreAdjust";
 import type { MatchEvent, Side } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -101,6 +102,11 @@ export async function POST(req: Request) {
             action === "point"
               ? { k: "pt", s: body.side, t: Date.now() }
               : { k: "to", s: body.side, t: Date.now() };
+        } else if (action === "adjust") {
+          if (!isSide(body.side)) return "Bad side";
+          const delta = Number(body.delta);
+          if (delta !== 1 && delta !== -1) return "Adjust must be +1 or −1";
+          e = adjustEvent(body.side, delta as 1 | -1);
         } else if (action === "resume") e = { k: "resume", t: Date.now() };
         else if (action === "nextSet") e = { k: "next", t: Date.now() };
         else return "Unknown score action";

@@ -60,25 +60,56 @@ export function derive(ev: MatchEvent[], f: Format, timeoutSeconds = DEFAULT_TIM
     return { a: 0, b: 0, target: targetFor(f, i), winner: null, toA: 0, toB: 0, firstServe: fs };
   };
   st.sets.push(newSet(0));
-  for (let i = 1; i < ev.length; i++) {
-    const e = ev[i];
-    if (st.status === "done") break;
-    const s = st.sets[st.cur];
-    if (e.k === "pt") {
-      if (st.awaitingNext || st.timeout) continue;
-      if (e.s === "A") s.a++;
-      else s.b++;
-      st.serve = e.s;
-      const w = setWinner(s.a, s.b, s.target, f);
-      if (w) {
+  const applySetOutcome = (s: SetState) => {
+    const w = setWinner(s.a, s.b, s.target, f);
+    if (w) {
+      if (!s.winner) {
         s.winner = w;
         if (w === "A") st.setsA++;
         else st.setsB++;
         if (st.setsA >= need || st.setsB >= need) {
           st.status = "done";
           st.winner = st.setsA > st.setsB ? "A" : "B";
+          st.awaitingNext = false;
         } else st.awaitingNext = true;
       }
+    } else if (s.winner) {
+      if (s.winner === "A") st.setsA--;
+      else st.setsB--;
+      s.winner = null;
+      st.awaitingNext = false;
+      if (st.status === "done") {
+        st.status = "live";
+        st.winner = null;
+      }
+    }
+  };
+
+  for (let i = 1; i < ev.length; i++) {
+    const e = ev[i];
+    // Adjust events may reopen a finished match; other events stop once done.
+    if (st.status === "done" && e.k !== "adj") break;
+    const s = st.sets[st.cur];
+    if (e.k === "pt") {
+      if (st.awaitingNext || st.timeout) continue;
+      if (e.s === "A") s.a++;
+      else s.b++;
+      st.serve = e.s;
+      applySetOutcome(s);
+    } else if (e.k === "adj") {
+      if (st.timeout) continue;
+      if (e.n === 1) {
+        if (st.awaitingNext || st.status === "done") continue;
+        if (e.s === "A") s.a++;
+        else s.b++;
+      } else {
+        const cur = e.s === "A" ? s.a : s.b;
+        if (cur <= 0) continue;
+        if (e.s === "A") s.a--;
+        else s.b--;
+      }
+      // Intentionally do not change st.serve
+      applySetOutcome(s);
     } else if (e.k === "to") {
       if (st.awaitingNext || st.timeout) continue;
       if (e.s === "A" && s.toA < f.timeouts) s.toA++;
@@ -123,6 +154,18 @@ export function checkAction(
   const st = derive(ev, f, timeoutSeconds);
   if (e.k === "start") return ev.length ? "Match already started" : null;
   if (st.status === "scheduled") return "Start the match first";
+  if (e.k === "adj") {
+    if (st.timeout) return "Timeout in progress — resume when the timer ends";
+    if (e.n !== 1 && e.n !== -1) return "Bad adjust";
+    if (e.n === 1) {
+      if (st.status === "done") return "Match is finished";
+      if (st.awaitingNext) return "Start the next set first";
+      return null;
+    }
+    const s = st.sets[st.cur];
+    const cur = e.s === "A" ? s.a : s.b;
+    return cur <= 0 ? "Score already 0" : null;
+  }
   if (st.status === "done") return "Match is finished";
   if (e.k === "resume") {
     if (!st.timeout) return "No timeout to resume";

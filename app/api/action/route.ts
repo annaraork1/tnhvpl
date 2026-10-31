@@ -4,6 +4,7 @@ import { checkAuctionEvent, deriveAuction, pickDrawNumber } from "@/lib/auction"
 import { normalizeAwards, teamForPlayer, validateAwards } from "@/lib/awards";
 import { checkAction, computeAll, derive, formatFor } from "@/lib/engine";
 import { generateFixtures } from "@/lib/fixtures";
+import { adjustEvent } from "@/lib/scoreAdjust";
 import { stageBlocksAction } from "@/lib/stageLocks";
 import { hashOwnerPin, verifyOwnerPin } from "@/lib/ownerAuth";
 import {
@@ -78,7 +79,7 @@ function staffRoleFor(pin: string | null): Role | null {
   return null;
 }
 
-const MATCH_ACTIONS = new Set(["start", "point", "timeout", "resume", "nextSet", "undo"]);
+const MATCH_ACTIONS = new Set(["start", "point", "adjust", "timeout", "resume", "nextSet", "undo"]);
 const SCORER_OK = new Set([...MATCH_ACTIONS, "saveAwards", "setBestPlayer"]);
 const AUCTIONEER_OK = new Set([
   "auctionStart",
@@ -180,12 +181,19 @@ export async function POST(req: Request) {
         } else if (type === "point" || type === "timeout") {
           if (!isSide(body.side)) return "Bad side";
           e = type === "point" ? { k: "pt", s: body.side } : { k: "to", s: body.side };
+        } else if (type === "adjust") {
+          if (!isSide(body.side)) return "Bad side";
+          const delta = Number(body.delta);
+          if (delta !== 1 && delta !== -1) return "Adjust must be +1 or −1";
+          e = adjustEvent(body.side, delta as 1 | -1);
         } else if (type === "resume") e = { k: "resume" };
         else e = { k: "next" };
         const problem = checkAction(m.ev, fmt, e, toSec);
         if (problem) return problem;
         e.t = Date.now();
         m.ev.push(e);
+        const after = derive(m.ev, fmt, toSec);
+        if (after.status !== "done") m.bestPlayer = null;
         return m;
       });
     } else if (type === "setBestPlayer") {

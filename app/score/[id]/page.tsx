@@ -7,11 +7,13 @@ import { BestPlayerPicker } from "@/components/BestPlayerPicker";
 import { WinConfetti } from "@/components/Confetti";
 import { useLive } from "@/components/LiveProvider";
 import { PressureBallBadge } from "@/components/PressureBallBadge";
+import { ScoreAdjust } from "@/components/ScoreAdjust";
 import { TimeoutOverlay } from "@/components/TimeoutOverlay";
 import { WhistleButton } from "@/components/WhistleButton";
 import { Loading, Logo, PinGate } from "@/components/ui";
 import { DEFAULT_TIMEOUT_SECONDS, derive, formatFor, other } from "@/lib/engine";
 import { pressureBallForSide } from "@/lib/pressureBall";
+import { adjustEvent } from "@/lib/scoreAdjust";
 import type { MatchEvent, Side } from "@/lib/types";
 
 type Op = { kind: "ev"; e: MatchEvent } | { kind: "undo" };
@@ -73,7 +75,7 @@ function Console() {
     (op: Op, type: string, payload: Record<string, unknown> = {}) => {
       setHold(true);
       setPending((p) => [...p, op]);
-      if (navigator.vibrate) navigator.vibrate(op.kind === "undo" ? [20, 40, 20] : 25);
+      if (navigator.vibrate) navigator.vibrate(op.kind === "undo" || (op.kind === "ev" && op.e.k === "adj") ? [20, 40, 20] : 25);
       queue.current = queue.current.then(async () => {
         const r = await act(type, { id, ...payload }, { noAccept: true });
         // Apply server state before dropping the optimistic op so the pad never
@@ -150,32 +152,51 @@ function Console() {
     );
 
   const inTimeout = !!m.timeout;
+  const canPlus = m.status === "live" && !m.awaitingNext && !inTimeout;
+  const canMinusSide = (s: Side) =>
+    !inTimeout &&
+    m.status !== "scheduled" &&
+    (s === "A" ? set.a : set.b) > 0;
+  /** Big pad: real rally point (changes serve). */
+  const rallyPoint = (s: Side) => send({ kind: "ev", e: { k: "pt", s, t: Date.now() } }, "point", { side: s });
+  /** Adjust row: score only — serve stays put. */
+  const adjustScore = (s: Side, delta: 1 | -1) =>
+    send({ kind: "ev", e: adjustEvent(s, delta) }, "adjust", { side: s, delta });
+
   const pad = (s: Side) => {
     const pts = s === "A" ? set.a : set.b;
     const sets = s === "A" ? m.setsA : m.setsB;
-    const blocked = m.status !== "live" || m.awaitingNext || inTimeout;
+    const blocked = !canPlus;
     const pressure =
       m.status === "live" && !m.awaitingNext && !inTimeout
         ? pressureBallForSide(s, set.a, set.b, set.target, fmt, m.setsA, m.setsB)
         : null;
     return (
-      <button
-        className="pad"
-        style={{ ["--tc" as string]: T[s]?.color ?? "#555" }}
-        disabled={blocked}
-        onClick={() => send({ kind: "ev", e: { k: "pt", s, t: Date.now() } }, "point", { side: s })}
-        aria-label={`Point to ${name(s)}`}
-      >
-        <span className="pteam">
-          <Logo team={T[s]} size={48} />
-          <span className="pname">{name(s)}</span>
-          <PressureBallBadge kind={pressure} />
-        </span>
-        <span className="ppts">{pts}</span>
-        <span className="pset">
-          {m.serve === s && !blocked ? <b className="ball">🏐 Serving · </b> : null}Sets {sets}
-        </span>
-      </button>
+      <div className="pad-col" style={{ ["--tc" as string]: T[s]?.color ?? "#555" }}>
+        <button
+          className="pad"
+          disabled={blocked}
+          onClick={() => rallyPoint(s)}
+          aria-label={`Point to ${name(s)}`}
+        >
+          <span className="pteam">
+            <Logo team={T[s]} size={48} />
+            <span className="pname">{name(s)}</span>
+            <PressureBallBadge kind={pressure} />
+          </span>
+          <span className="ppts">{pts}</span>
+          <span className="pset">
+            {m.serve === s && !blocked ? <b className="ball">🏐 Serving · </b> : null}Sets {sets}
+          </span>
+        </button>
+        <ScoreAdjust
+          sideLabel={name(s)}
+          canMinus={canMinusSide(s)}
+          canPlus={canPlus}
+          onMinus={() => adjustScore(s, -1)}
+          onPlus={() => adjustScore(s, 1)}
+        />
+      </div>
     );
   };
 

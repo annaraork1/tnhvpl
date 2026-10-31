@@ -353,35 +353,119 @@ table.standings { width: 100%; border-collapse: collapse; font-variant-numeric: 
   user-select: none;
   -webkit-user-select: none;
 }
-.sbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
-.sbar .mid { text-align: center; font-family: var(--display); line-height: 1.1; flex: 1; min-width: 0; }
-.sbar .mid b { font-size: 20px; }
-.sbar .sbar-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.sbar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.sbar .mid { text-align: center; font-family: var(--display); line-height: 1.15; min-width: 0; overflow: hidden; }
+.sbar .mid b { font-size: 18px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sbar .mid .muted { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sbar .sbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
 .pads { display: grid; grid-template-columns: 1fr 1fr; min-height: 0; height: 100%; overflow: hidden; }
+.pad-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--tc) 22%, var(--bg));
+}
+.pad-col + .pad-col { border-left: 1px solid var(--line); }
 .pad {
   position: relative;
   border: 0;
   border-radius: 0;
-  background: color-mix(in srgb, var(--tc) 22%, var(--bg));
+  background: transparent;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
   align-items: center;
   justify-items: center;
-  padding: 12px 8px;
+  padding: 12px 8px 4px;
   gap: 4px;
   touch-action: manipulation;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  height: 100%;
+  flex: 1;
+}
+.pad-adjust {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 8px 10px 10px;
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+}
+.pad-adjust-label {
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1;
+  margin: 0;
+}
+.pad-adjust-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-items: stretch;
+  width: 100%;
+}
+.pad-adjust-btn {
+  box-sizing: border-box;
+  height: 44px;
+  min-height: 44px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card2);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+  touch-action: manipulation;
+}
+.pad-adjust-btn.pad-adjust-plus {
+  background: var(--gold);
+  color: var(--bg);
+  border-color: var(--gold);
+}
+.pad-adjust-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.pad-adjust-btn:active:not(:disabled) {
+  transform: scale(0.97);
 }
 .pad .pteam { display: grid; justify-items: center; gap: 6px; min-width: 0; max-width: 100%; }
 .pad .pteam .logo { border-radius: 50%; box-shadow: 0 0 0 2px color-mix(in srgb, var(--tc) 55%, transparent); }
 .best-pick-list { max-height: min(28vh, 220px) !important; }
 .best-pick.compact { gap: 8px; text-align: left; }
 .motm-suggest { display: grid; gap: 6px; }
-.pad + .pad { border-left: 1px solid var(--line); }
-.pad:active { background: color-mix(in srgb, var(--tc) 45%, var(--bg)); }
+.pad:active { background: color-mix(in srgb, var(--tc) 45%, transparent); }
 .pad:disabled { cursor: default; }
 .pad .pname { font-family: var(--display); font-weight: 700; font-size: clamp(14px, 3.8vw, 22px); text-align: center; line-height: 1.15; overflow-wrap: anywhere; max-width: 100%; padding: 0 4px; }
 /* Cap by both vw and vh so landscape phones don't blow past the short axis */
@@ -398,7 +482,6 @@ table.standings { width: 100%; border-collapse: collapse; font-variant-numeric: 
 .pad .ball { color: var(--gold); font-weight: 700; }
 .sfoot { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--line); flex-shrink: 0; align-items: stretch; }
 .sfoot .btn { padding: 14px 6px; font-size: 15px; }
-.sfoot.sfoot-with-abandon { grid-template-columns: minmax(0, 0.7fr) 1fr 1fr minmax(0, 0.7fr); }
 .sfoot .btn.timeout-mini {
   padding: 8px 4px;
   font-size: 11px;
@@ -406,6 +489,15 @@ table.standings { width: 100%; border-collapse: collapse; font-variant-numeric: 
   font-weight: 600;
   letter-spacing: 0.02em;
   opacity: 0.9;
+}
+.sbar-actions .btn {
+  padding: 8px 10px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.sbar-actions .btn.red {
+  padding: 8px 10px;
+  font-size: 13px;
 }
 .banner { position: fixed; inset: 0; background: rgba(5, 8, 18, 0.88); display: grid; place-items: center; padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); z-index: 40; overflow: auto; }
 .banner .card { max-width: 420px; width: 100%; display: grid; gap: 14px; text-align: center; max-height: min(92dvh, 100%); overflow: auto; }
@@ -418,7 +510,11 @@ table.standings { width: 100%; border-collapse: collapse; font-variant-numeric: 
   .sbar .mid b { font-size: 15px; }
   .sbar .mid .muted { font-size: 11px !important; }
   .sbar .btn { padding: 6px 8px; font-size: 13px; }
-  .pad { padding: 4px 6px; gap: 2px; }
+  .pad { padding: 4px 6px 2px; gap: 2px; }
+  .pad-adjust { padding: 4px 8px 6px; gap: 3px; }
+  .pad-adjust-row { gap: 6px; }
+  .pad-adjust-btn { height: 34px; min-height: 34px; font-size: 18px; border-radius: 8px; }
+  .pad-adjust-label { font-size: 9px; }
   .pad .pteam { gap: 2px; }
   .pad .pteam .logo,
   .pad .pteam .logo.ph {
@@ -427,9 +523,10 @@ table.standings { width: 100%; border-collapse: collapse; font-variant-numeric: 
     font-size: 12px !important;
   }
   .pad .pname { font-size: clamp(11px, 2.2vw, 15px); }
-  .pad .ppts { font-size: clamp(36px, min(18vw, 36vh), 96px); }
+  .pad .ppts { font-size: clamp(28px, min(16vw, 28vh), 72px); }
   .pad .pset { font-size: 12px; }
   .pad .pball { font-size: 9px; padding: 2px 5px; }
+  .sbar-actions .btn.red { padding: 4px 8px; font-size: 11px; }
   .sfoot { padding: 4px 8px; gap: 6px; }
   .sfoot .btn { padding: 8px 4px; font-size: 12px; min-height: 0; }
   .sfoot .btn.timeout-mini { padding: 4px 2px; font-size: 10px; }
