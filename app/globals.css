@@ -1853,3 +1853,93 @@ input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--gold); }
   .purse-table thead th.purse-stub,
   .purse-table tbody th[scope="row"] { width: 108px; }
 }
+
+/* Gallery */
+.chip {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--cream);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.chip.on { border-color: var(--gold); color: var(--gold); }
+.gallery-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+.gallery-thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--card);
+}
+.gallery-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.gallery-tile { display: grid; gap: 8px; }
+.gallery-tile-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.gallery-strip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(96px, 120px);
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.gallery-strip-item {
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--card);
+}
+.gallery-strip-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.gallery-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(0, 0, 0, 0.82);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+.gallery-lightbox-inner {
+  max-width: min(960px, 100%);
+  max-height: 92dvh;
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+}
+.gallery-lightbox-inner > img {
+  max-width: 100%;
+  max-height: min(70dvh, 720px);
+  object-fit: contain;
+  border-radius: 12px;
+}
+.gallery-lightbox-meta {
+  text-align: center;
+  max-width: 520px;
+}
+.gallery-contribute { text-align: center; }
+.gallery-upload.compact h3 { display: none; }
+.gallery-upload .form { text-align: left; }

@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/fixtures", label: "Fixtures" },
   { href: "/standings", label: "Table" },
   { href: "/teams", label: "Teams" },
+  { href: "/gallery", label: "Gallery" },
   { href: "/awards", label: "Awards" },
   { href: "/staff", label: "Staff" },
   { href: "/practice", label: "Practice" },
@@ -51,7 +52,9 @@ export function Nav() {
                   ? path === "/seasons"
                   : l.href === "/staff"
                     ? path === "/staff" || path.startsWith("/staff/")
-                    : path === l.href;
+                    : l.href === "/gallery"
+                      ? path === "/gallery" || path.startsWith("/gallery/")
+                      : path === l.href;
             return (
               <Link key={l.href} href={href} className={on ? "on" : ""}>
                 {l.label}

@@ -50,8 +50,10 @@ Pages refresh themselves every 3 seconds, so nobody has to reload.
    - `ADMIN_PIN`: for you (organiser). Pick something only you know.
    - `SCORER_PIN`: for the people scoring on court.
    - `AUCTIONEER_PIN`: for the auction console / projector (admin PIN also works). Owner PINs are set per team in Admin.
-5. **Redeploy** (Deployments → ⋯ → Redeploy) so the new variables take effect.
-6. Open the site. If you see an orange "Demo mode" bar, the database isn't connected yet; recheck step 3 and redeploy.
+   - `GALLERY_PIN` (optional): lets photographers publish to the gallery without the admin PIN.
+5. **Photo gallery (optional).** Storage → Blob → create a store and connect it (adds `BLOB_READ_WRITE_TOKEN` / `BLOB_STORE_ID`). New stores are usually **private** — keep `BLOB_ACCESS=private` (default in the app). If you created a public store, set `BLOB_ACCESS=public`. Without Blob, gallery uploads work only in local/dev memory mode.
+6. **Redeploy** (Deployments → ⋯ → Redeploy) so the new variables take effect.
+7. Open the site. If you see an orange "Demo mode" bar, the database isn't connected yet; recheck step 3 and redeploy.
 
 Optional: add a custom domain under Settings → Domains.
 
@@ -83,7 +85,7 @@ The table always recalculates from the scored rallies, so a rule change applies 
 
 ```bash
 npm install
-npm run dev        # http://localhost:3000  (dev PINs: admin 1234, scorer 1111, auctioneer 2222)
+npm run dev        # http://localhost:3000  (dev PINs: admin 1234, scorer 1111, auctioneer 2222, gallery 3333)
 npm test           # scoring engine tests
 ```
 
@@ -92,6 +94,10 @@ Without the Upstash variables the app keeps everything in memory. That is fine f
 ## Free-plan limits
 
 Spectator pages share one cached copy of the scores for 2 seconds at Vercel's edge, so 50 people watching costs about one database read every 2 seconds. That is well inside the free plans of Vercel and Upstash for a two-day tournament. Scorers bypass the cache, so their screen is always exact.
+
+### Photo gallery
+
+Open **Gallery** in the nav (or **Add photos** on a match page). Photos are compressed on the phone before upload (max ~1920px / ~1.2 MB). Staff or `GALLERY_PIN` publishes immediately; anyone else submits for admin approval. Bytes live in **Vercel Blob**; Redis only stores captions, tags, match links and status. Cap is about **80 published photos per season** — delete old ones in the lightbox (admin) if you hit the limit.
 
 ## Privacy
 

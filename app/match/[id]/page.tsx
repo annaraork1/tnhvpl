@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { BestPlayerNote } from "@/components/BestPlayerPicker";
 import { useLive } from "@/components/LiveProvider";
 import { LiveScore } from "@/components/LiveScore";
+import { MatchGallery } from "@/components/MatchGallery";
 import { ShareMatch } from "@/components/ShareMatch";
 import { Loading } from "@/components/ui";
 import { formatFor } from "@/lib/engine";
@@ -40,6 +41,7 @@ export default function MatchPage() {
           </Link>
         )}
       </div>
+      <MatchGallery matchId={fx.id} />
     </>
   );
 }

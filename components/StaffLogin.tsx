@@ -50,9 +50,14 @@ export function StaffLogin() {
         </div>
         <div className="row" style={{ flexWrap: "wrap" }}>
           {(role === "admin" || role === "scorer") && (
-            <Link className="btn gold" href={seasonHref("/score")}>
-              Score matches
-            </Link>
+            <>
+              <Link className="btn gold" href={seasonHref("/score")}>
+                Score matches
+              </Link>
+              <Link className="btn" href={seasonHref("/gallery")}>
+                Gallery
+              </Link>
+            </>
           )}
           {role === "admin" && (
             <>
