@@ -70,6 +70,8 @@ export function usePresence(opts: {
       setCount(null);
       return;
     }
+    // Wait for season on tournament matches so heartbeats never trigger a full state load.
+    if (kind === "t" && !season) return;
 
     let cancelled = false;
     const tick = async () => {
@@ -103,7 +105,9 @@ export function usePresence(opts: {
     };
 
     void tick();
-    const iv = setInterval(() => void tick(), PRESENCE_BEAT_MS);
+    // Jitter so many viewers do not stampede Redis on the same wall-clock second.
+    const jitter = Math.floor(Math.random() * 2_500);
+    const iv = setInterval(() => void tick(), PRESENCE_BEAT_MS + jitter);
     const onVis = () => {
       if (document.visibilityState === "visible") void tick();
     };
@@ -113,7 +117,7 @@ export function usePresence(opts: {
       clearInterval(iv);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [kind, id, live, beat]);
+  }, [kind, id, live, beat, season]);
 
   return count;
 }

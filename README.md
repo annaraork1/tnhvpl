@@ -33,7 +33,7 @@ Points, tie-breaks and set formats can all be changed from the Admin page.
 | `/auction/board` | Everyone | Live purse board |
 | `/auction/owner` | Team owner PIN | Bid from phone |
 
-Pages refresh themselves every 3 seconds, so nobody has to reload.
+Pages refresh themselves about every second while a match is live (every 3 seconds otherwise), so nobody has to reload.
 
 ## Deploy to Vercel (about 10 minutes)
 
@@ -93,7 +93,7 @@ Without the Upstash variables the app keeps everything in memory. That is fine f
 
 ## Free-plan limits
 
-Spectator pages share one cached copy of the scores for 2 seconds at Vercel's edge, so 50 people watching costs about one database read every 2 seconds. That is well inside the free plans of Vercel and Upstash for a two-day tournament. Scorers bypass the cache, so their screen is always exact.
+Spectator pages share one cached copy of the scores for about 1 second at Vercel's edge, so many people watching still share one database read. That is well inside the free plans of Vercel and Upstash for a two-day tournament. Scorers bypass the cache, so their screen is always exact.
 
 ### Photo gallery
 

@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { computeAll } from "@/lib/engine";
+import { anyMatchLive, nextPollDelayMs } from "@/lib/livePoll";
 import type { AppState, Team } from "@/lib/types";
 
 type Computed = ReturnType<typeof computeAll>;
@@ -124,6 +125,7 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
   const lastServer = useRef(0);
   const lastRev = useRef(0);
   const hold = useRef(false);
+  const liveRef = useRef(false);
   const seasonRef = useRef(seasonParam);
   seasonRef.current = seasonParam;
   const hasState = useRef(false);
@@ -262,21 +264,55 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let alive = true;
-    let timer: ReturnType<typeof setTimeout>;
-    const loop = async () => {
-      if (!alive) return;
-      if (typeof document === "undefined" || document.visibilityState === "visible") {
-        await refresh(Date.now() < fastUntil.current);
-      }
-      timer = setTimeout(loop, 3000);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let inFlight = false;
+
+    const schedule = (delay: number) => {
+      timer = setTimeout(() => {
+        void tick();
+      }, delay);
     };
-    loop();
-    const onVis = () => document.visibilityState === "visible" && refresh(true);
+
+    // First fetch (and pull-to-refresh / bfcache restore) must bypass the edge
+    // cache — otherwise a manual refresh can still show a 1s-stale scoreboard.
+    let first = true;
+    const tick = async () => {
+      if (!alive) return;
+      if (inFlight) {
+        schedule(nextPollDelayMs(liveRef.current, 0));
+        return;
+      }
+      const start = Date.now();
+      if (typeof document === "undefined" || document.visibilityState === "visible") {
+        inFlight = true;
+        try {
+          const bypass = first || Date.now() < fastUntil.current;
+          first = false;
+          await refresh(bypass);
+        } finally {
+          inFlight = false;
+        }
+      }
+      if (!alive) return;
+      schedule(nextPollDelayMs(liveRef.current, Date.now() - start));
+    };
+
+    void tick();
+    const onVis = () => {
+      if (document.visibilityState === "visible") void refresh(true);
+    };
+    const onPageShow = (e: PageTransitionEvent) => {
+      // Pull-to-refresh and bfcache restore both fire pageshow; always revalidate.
+      void refresh(true);
+      if (e.persisted) first = true;
+    };
     document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("pageshow", onPageShow);
     return () => {
       alive = false;
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("pageshow", onPageShow);
     };
   }, [refresh]);
 
@@ -314,6 +350,7 @@ export function LiveProvider({ children }: { children: React.ReactNode }) {
   );
 
   const calc = useMemo(() => (state ? computeAll(state) : null), [state]);
+  liveRef.current = anyMatchLive(calc?.ms);
   const team = useCallback((id: string | null | undefined) => state?.config.teams.find((t) => t.id === id), [state]);
   const season = seasonParam || state?.tournamentKey || null;
   const seasonHref = useCallback((path: string) => withSeason(path, seasonParam), [seasonParam]);
