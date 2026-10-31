@@ -528,8 +528,32 @@ table.standings { width: 100%; border-collapse: collapse; font-variant-numeric: 
 }
 .pad .pteam { display: grid; justify-items: center; gap: 6px; min-width: 0; max-width: 100%; }
 .pad .pteam .logo { border-radius: 50%; box-shadow: 0 0 0 2px color-mix(in srgb, var(--tc) 55%, transparent); }
-.best-pick-list { max-height: min(28vh, 220px) !important; }
+.best-pick {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.best-pick-list {
+  display: grid;
+  gap: 6px;
+  max-height: min(40vh, 280px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card2);
+}
 .best-pick.compact { gap: 8px; text-align: left; }
+.best-pick.compact .best-pick-list { max-height: min(28vh, 220px); }
+.motm-edit-card {
+  max-width: 480px;
+  margin: 0 auto;
+  width: 100%;
+  overflow: hidden;
+}
 .motm-suggest { display: grid; gap: 6px; }
 .pad:active { background: color-mix(in srgb, var(--tc) 45%, transparent); }
 .pad:disabled { cursor: default; }

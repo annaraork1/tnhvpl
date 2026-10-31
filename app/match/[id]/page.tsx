@@ -58,7 +58,7 @@ export default function MatchPage() {
         )}
       </div>
       {canEditMotm && editMotm && (
-        <div className="card" style={{ maxWidth: 480, margin: "0 auto", width: "100%" }}>
+        <div className="card motm-edit-card">
           <BestPlayerPicker
             matchId={fx.id}
             teamA={r.a!}
