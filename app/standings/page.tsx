@@ -1,11 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useLive } from "@/components/LiveProvider";
 import { Loading, MatchRow, StandingsTable } from "@/components/ui";
 import { resultKeys } from "@/lib/engine";
 
 export default function Standings() {
-  const { state, calc, team } = useLive();
+  const { state, calc, team, seasonHref } = useLive();
   if (!state || !calc) return <Loading />;
   const s = state.config.settings;
   const playoffs = state.config.fixtures.filter((f) => f.stage !== "League").sort((a, b) => a.no - b.no);
@@ -13,7 +14,12 @@ export default function Standings() {
   const runner = team(calc.runnerUp);
   return (
     <>
-      <h1>Points table</h1>
+      <div className="sechead">
+        <h1>Points table</h1>
+        <Link className="btn gold" href={seasonHref("/standings/race")}>
+          Race calculator
+        </Link>
+      </div>
       <div className="card">
         <StandingsTable />
         <p className="note">

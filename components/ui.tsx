@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { formatFor, scoreLine, TIE_LABELS } from "@/lib/engine";
+import { PLAYOFF_QUALIFY } from "@/lib/qualify";
 import type { Fixture, MatchState, Team } from "@/lib/types";
 import { useLive } from "./LiveProvider";
 
@@ -87,7 +88,6 @@ export function MatchRow({ fx }: { fx: Fixture }) {
 export function StandingsTable({ compact = false }: { compact?: boolean }) {
   const { calc, state, team } = useLive();
   if (!calc || !state) return <Loading />;
-  const qualify = 4;
   return (
     <div className="tablewrap">
       <table className="standings">
@@ -108,7 +108,7 @@ export function StandingsTable({ compact = false }: { compact?: boolean }) {
           {calc.table.map((r, i) => {
             const t = team(r.team);
             return (
-              <tr key={r.team} className={i < qualify ? "q" : ""}>
+              <tr key={r.team} className={i < PLAYOFF_QUALIFY ? "q" : ""}>
                 <td>{i + 1}</td>
                 <td className="l">
                   <Link href={`/teams/${r.team}`} className="tname">
@@ -134,7 +134,7 @@ export function StandingsTable({ compact = false }: { compact?: boolean }) {
       </table>
       {!compact && (
         <p className="note">
-          Top {qualify} reach the playoffs. Ties broken by:{" "}
+          Top {PLAYOFF_QUALIFY} reach the playoffs. Ties broken by:{" "}
           {state.config.settings.tiebreak.map((k) => TIE_LABELS[k]).join(" → ")}.
         </p>
       )}

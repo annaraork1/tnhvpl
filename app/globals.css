@@ -226,6 +226,32 @@ button:disabled.busy-pulse {
 }
 
 /* standings */
+/* Race calculator (standings what-if) */
+.race-calc-controls { align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.race-calc-controls select.btn {
+  appearance: auto;
+  min-width: 10rem;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+.race-summary { border-top: 3px solid var(--gold); }
+.race-outcome-row { gap: 6px; flex-wrap: wrap; }
+.race-outcome-row .btn { padding: 8px 10px; font-size: 13px; }
+.race-rem-row { display: grid; gap: 8px; padding: 10px 0; border-top: 1px solid var(--line); }
+.race-rem-row:first-of-type { border-top: none; padding-top: 0; }
+.race-rem-meta { display: grid; gap: 2px; }
+.race-staff { border: 1px dashed var(--line); }
+.race-staff-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+.race-paths { margin: 0; padding-left: 1.2rem; display: grid; gap: 8px; }
+.race-paths li { line-height: 1.4; }
+.race-paths .btn { padding: 4px 8px; font-size: 12px; vertical-align: baseline; }
+
 .tablewrap { overflow-x: auto; }
 table.standings { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 .standings th, .standings td { padding: 10px 6px; text-align: center; border-bottom: 1px solid var(--line); white-space: nowrap; }
