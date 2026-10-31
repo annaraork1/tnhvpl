@@ -15,7 +15,8 @@ type Props = {
 
 export function GalleryUpload({ matchId = null, defaultTags = "", onUploaded, compact }: Props) {
   const { state, pin, role } = useLive();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const libraryRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
   const [tags, setTags] = useState(defaultTags);
   const [caption, setCaption] = useState("");
   const [galleryPin, setGalleryPin] = useState(() => {
@@ -72,8 +73,14 @@ export function GalleryUpload({ matchId = null, defaultTags = "", onUploaded, co
       setErr(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setBusy(false);
-      if (fileRef.current) fileRef.current.value = "";
+      if (libraryRef.current) libraryRef.current.value = "";
+      if (cameraRef.current) cameraRef.current.value = "";
     }
+  }
+
+  function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (f) void uploadFile(f);
   }
 
   return (
@@ -121,25 +128,37 @@ export function GalleryUpload({ matchId = null, defaultTags = "", onUploaded, co
           Caption (optional)
           <input value={caption} onChange={(e) => setCaption(e.target.value)} maxLength={200} placeholder="Short note" />
         </label>
+        {/* Library picker — no capture attribute so phones open the photo library */}
         <input
-          ref={fileRef}
+          ref={libraryRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/*"
+          disabled={busy}
+          className="sr-only"
+          aria-hidden
+          tabIndex={-1}
+          onChange={onPick}
+        />
+        {/* Camera — capture prefers the rear camera when available */}
+        <input
+          ref={cameraRef}
           type="file"
           accept="image/jpeg,image/png,image/webp,image/*"
           capture="environment"
           disabled={busy}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) void uploadFile(f);
-          }}
+          className="sr-only"
+          aria-hidden
+          tabIndex={-1}
+          onChange={onPick}
         />
-        <button
-          type="button"
-          className="btn gold"
-          disabled={busy}
-          onClick={() => fileRef.current?.click()}
-        >
-          {busy ? "Compressing & uploading…" : "Choose photo"}
-        </button>
+        <div className="row" style={{ flexWrap: "wrap" }}>
+          <button type="button" className="btn gold" disabled={busy} onClick={() => libraryRef.current?.click()}>
+            {busy ? "Compressing & uploading…" : "Choose from gallery"}
+          </button>
+          <button type="button" className="btn" disabled={busy} onClick={() => cameraRef.current?.click()}>
+            Take photo
+          </button>
+        </div>
       </div>
       {msg && <p className="note">{msg}</p>}
       {err && <p className="error">{err}</p>}

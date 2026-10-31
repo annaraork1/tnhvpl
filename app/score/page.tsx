@@ -33,7 +33,15 @@ function List() {
         </div>
         <div className="mside">
           <StatusPill m={m} />
-          <span className="muted">{m.status === "scheduled" ? "Start →" : m.status === "live" ? "Resume →" : "Fix →"}</span>
+          <span className="muted">
+            {m.status === "scheduled"
+              ? "Start →"
+              : m.status === "live"
+                ? "Resume →"
+                : state.matches[f.id]?.bestPlayer
+                  ? "MOTM / fix →"
+                  : "Set MOTM →"}
+          </span>
         </div>
       </Link>
     );

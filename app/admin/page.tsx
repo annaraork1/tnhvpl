@@ -25,7 +25,7 @@ import type { AuctionSettings, Fixture, Format, Player, Settings, Team, TieKey }
 
 export default function Admin() {
   return (
-    <PinGate need="admin">
+    <PinGate need="fixtures">
       <AdminInner />
     </PinGate>
   );
@@ -61,8 +61,12 @@ function readAdminTab(): AdminTab {
   return ADMIN_TABS.some((x) => x.id === t) ? (t as AdminTab) : "overview";
 }
 
+const SCORER_TABS: AdminTab[] = ["fixtures"];
+
 function AdminInner() {
-  const { state, calc, act, logout, seasonHref } = useLive();
+  const { state, calc, act, logout, seasonHref, role } = useLive();
+  const isScorerOnly = role === "scorer";
+  const visibleTabs = isScorerOnly ? ADMIN_TABS.filter((t) => SCORER_TABS.includes(t.id)) : ADMIN_TABS;
   const [tab, setTab] = useState<AdminTab>("overview");
   const [draftKey, setDraftKey] = useState<string | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -80,8 +84,14 @@ function AdminInner() {
   const [masterQuery, setMasterQuery] = useState("");
 
   useEffect(() => {
-    setTab(readAdminTab());
-  }, []);
+    const t = readAdminTab();
+    if (isScorerOnly && !SCORER_TABS.includes(t)) setTab("fixtures");
+    else setTab(t);
+  }, [isScorerOnly]);
+
+  useEffect(() => {
+    if (isScorerOnly && !SCORER_TABS.includes(tab)) setTab("fixtures");
+  }, [isScorerOnly, tab]);
 
   useEffect(() => {
     if (!state) return;
@@ -371,15 +381,21 @@ function AdminInner() {
   return (
     <>
       <div className="sechead">
-        <h1>Admin</h1>
+        <h1>{isScorerOnly ? "Fixtures" : "Admin"}</h1>
         <button className="btn ghost" onClick={logout}>Log out</button>
       </div>
       {state.storage === "memory" && (
         <p className="error">No database connected: changes live only in this server&apos;s memory. Connect Upstash Redis (see README) before the event.</p>
       )}
+      {isScorerOnly && (
+        <p className="note" style={{ margin: 0 }}>
+          Scorer access: update match dates, times, and team overrides. Generating a new schedule still needs the admin PIN.
+        </p>
+      )}
 
+      {!isScorerOnly && (
       <nav className="admin-tabs" aria-label="Admin sections">
-        {ADMIN_TABS.map((t) => (
+        {visibleTabs.map((t) => (
           <button
             key={t.id}
             type="button"
@@ -390,6 +406,7 @@ function AdminInner() {
           </button>
         ))}
       </nav>
+      )}
 
       {tab === "overview" && (
         <div className="admin-panel stack">
@@ -740,7 +757,7 @@ function AdminInner() {
 
       {tab === "fixtures" && (
         <div className="admin-panel stack">
-      <FixtureGenerator />
+      {!isScorerOnly && <FixtureGenerator />}
 
       <section className="card stack">
         <h2>Fixtures & timings</h2>

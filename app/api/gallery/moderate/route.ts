@@ -16,6 +16,14 @@ function err(message: string, status: number) {
   return NextResponse.json({ ok: false, error: message }, { status, headers: { "Cache-Control": "no-store" } });
 }
 
+function parseIds(body: Record<string, unknown>): string[] {
+  if (Array.isArray(body.ids)) {
+    return body.ids.map(String).filter((id) => /^g_[a-zA-Z0-9_-]+$/.test(id));
+  }
+  const id = String(body.id ?? "");
+  return id && /^g_[a-zA-Z0-9_-]+$/.test(id) ? [id] : [];
+}
+
 export async function POST(req: Request) {
   const pin = req.headers.get("x-pin");
   const role = galleryRoleFor(pin);
@@ -29,36 +37,61 @@ export async function POST(req: Request) {
   }
 
   const action = String(body.action ?? "");
-  const id = String(body.id ?? "");
-  if (!id || !/^g_[a-zA-Z0-9_-]+$/.test(id)) return err("Bad photo id", 400);
+  const ids = parseIds(body);
+  if (!ids.length) return err("Bad photo id", 400);
+  if (ids.length > 40) return err("Too many photos at once (max 40)", 400);
 
   const state = await loadState(typeof body.season === "string" ? body.season : null);
   const prefix = state.tournamentKey;
 
   try {
     if (action === "delete") {
-      const removed = await removeGalleryPhoto(prefix, id);
-      if (!removed) return err("Photo not found", 404);
-      return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
+      let removed = 0;
+      for (const id of ids) {
+        if (await removeGalleryPhoto(prefix, id)) removed += 1;
+      }
+      return NextResponse.json({ ok: true, removed }, { headers: { "Cache-Control": "no-store" } });
     }
 
     if (action === "approve") {
-      const cur = await getGalleryPhoto(prefix, id);
-      if (!cur) return err("Photo not found", 404);
-      if (cur.status === "published") {
-        return NextResponse.json({ ok: true, photo: cur }, { headers: { "Cache-Control": "no-store" } });
+      let published = await countPublished(prefix);
+      const photos = [];
+      let approved = 0;
+      for (const id of ids) {
+        const cur = await getGalleryPhoto(prefix, id);
+        if (!cur) continue;
+        if (cur.status === "published") {
+          photos.push(cur);
+          continue;
+        }
+        if (published >= GALLERY_MAX_PUBLISHED) {
+          return err(
+            `Season gallery is full (${GALLERY_MAX_PUBLISHED} published). Approved ${approved} of ${ids.length}.`,
+            400,
+          );
+        }
+        const photo = await updateGalleryPhoto(prefix, id, (p) => ({ ...p, status: "published" }));
+        photos.push(photo);
+        published += 1;
+        approved += 1;
       }
-      const n = await countPublished(prefix);
-      if (n >= GALLERY_MAX_PUBLISHED) {
-        return err(`Season gallery is full (${GALLERY_MAX_PUBLISHED} published photos). Delete some first.`, 400);
-      }
-      const photo = await updateGalleryPhoto(prefix, id, (p) => ({ ...p, status: "published" }));
-      return NextResponse.json({ ok: true, photo }, { headers: { "Cache-Control": "no-store" } });
+      return NextResponse.json(
+        { ok: true, approved, photos: ids.length === 1 ? photos[0] : photos },
+        { headers: { "Cache-Control": "no-store" } },
+      );
     }
 
     if (action === "reject") {
-      const photo = await updateGalleryPhoto(prefix, id, (p) => ({ ...p, status: "rejected" }));
-      return NextResponse.json({ ok: true, photo }, { headers: { "Cache-Control": "no-store" } });
+      const photos = [];
+      for (const id of ids) {
+        const cur = await getGalleryPhoto(prefix, id);
+        if (!cur) continue;
+        photos.push(await updateGalleryPhoto(prefix, id, (p) => ({ ...p, status: "rejected" })));
+      }
+      return NextResponse.json(
+        { ok: true, rejected: photos.length, photos: ids.length === 1 ? photos[0] : photos },
+        { headers: { "Cache-Control": "no-store" } },
+      );
     }
 
     return err("Unknown action", 400);

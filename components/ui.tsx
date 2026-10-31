@@ -144,14 +144,23 @@ export function StandingsTable({ compact = false }: { compact?: boolean }) {
 
 const fmtSigned = (n: number) => (n > 0 ? `+${n}` : String(n));
 
-export function PinGate({ need, children }: { need: "scorer" | "admin"; children: React.ReactNode }) {
+export function PinGate({
+  need,
+  children,
+}: {
+  /** admin = admin only; scorer = admin or scorer; fixtures = admin or scorer (schedule edits). */
+  need: "scorer" | "admin" | "fixtures";
+  children: React.ReactNode;
+}) {
   const { role, roleReady, login, logout } = useLive();
   const [val, setVal] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
   if (!roleReady) return <div className="empty">Checking PIN…</div>;
-  const ok = role === "admin" || (need === "scorer" && role === "scorer");
+  const ok =
+    role === "admin" ||
+    ((need === "scorer" || need === "fixtures") && role === "scorer");
   if (ok) return <>{children}</>;
   return (
     <form
@@ -172,7 +181,7 @@ export function PinGate({ need, children }: { need: "scorer" | "admin"; children
       <p className="muted">
         {role === "scorer" && need === "admin"
           ? "This page needs the admin PIN."
-          : need === "scorer"
+          : need === "scorer" || need === "fixtures"
             ? "Enter the admin or scorer PIN to continue. It stays on this phone."
             : "Enter the PIN to continue. It stays on this phone."}
       </p>

@@ -351,7 +351,13 @@ function Console() {
             </div>
             <p className="muted">{m.sets.map((s) => `${s.a}–${s.b}`).join(", ")}</p>
             <p className="note">The points table has been updated.</p>
-            <BestPlayerPicker matchId={id} teamA={r.a!} teamB={r.b!} compact />
+            <BestPlayerPicker
+              matchId={id}
+              teamA={r.a!}
+              teamB={r.b!}
+              compact
+              title={state.matches[id]?.bestPlayer ? "Update man of the match" : "Set man of the match"}
+            />
             <Link className="btn gold" href="/score">
               Back to matches
             </Link>

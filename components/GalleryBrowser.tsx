@@ -41,6 +41,8 @@ export function GalleryBrowser({
   const [lightbox, setLightbox] = useState<GalleryPhotoDto | null>(null);
   const [modMsg, setModMsg] = useState("");
   const [contributeOpen, setContributeOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [modBusy, setModBusy] = useState(false);
 
   const season = state?.tournamentKey;
 
@@ -63,7 +65,11 @@ export function GalleryBrowser({
         }).then((x) => x.json());
         if (pr.ok) setPending(pr.photos || []);
         else setPending([]);
-      } else setPending([]);
+        setSelected(new Set());
+      } else {
+        setPending([]);
+        setSelected(new Set());
+      }
     } finally {
       setLoading(false);
     }
@@ -96,19 +102,56 @@ export function GalleryBrowser({
     [state, calc, team],
   );
 
-  async function moderate(action: "approve" | "reject" | "delete", id: string) {
+  const allPendingSelected = pending.length > 0 && pending.every((p) => selected.has(p.id));
+  const selectedCount = selected.size;
+
+  function toggleSelected(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (allPendingSelected) setSelected(new Set());
+    else setSelected(new Set(pending.map((p) => p.id)));
+  }
+
+  async function moderate(action: "approve" | "reject" | "delete", ids: string | string[]) {
     if (!season || !pin) return;
+    const list = Array.isArray(ids) ? ids : [ids];
+    if (!list.length) return;
     setModMsg("");
-    const r = await fetch("/api/gallery/moderate", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-pin": pin },
-      body: JSON.stringify({ action, id, season }),
-    }).then((x) => x.json());
-    if (!r.ok) setModMsg(r.error || "Failed");
-    else {
-      setModMsg(action === "approve" ? "Published" : action === "reject" ? "Rejected" : "Deleted");
-      if (lightbox?.id === id) setLightbox(null);
-      await load();
+    setModBusy(true);
+    try {
+      const r = await fetch("/api/gallery/moderate", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-pin": pin },
+        body: JSON.stringify({ action, ids: list, season }),
+      }).then((x) => x.json());
+      if (!r.ok) setModMsg(r.error || "Failed");
+      else {
+        const n = list.length;
+        setModMsg(
+          action === "approve"
+            ? n === 1
+              ? "Published"
+              : `Approved ${r.approved ?? n}`
+            : action === "reject"
+              ? n === 1
+                ? "Rejected"
+                : `Rejected ${r.rejected ?? n}`
+              : n === 1
+                ? "Deleted"
+                : `Deleted ${r.removed ?? n}`,
+        );
+        if (lightbox && list.includes(lightbox.id)) setLightbox(null);
+        await load();
+      }
+    } finally {
+      setModBusy(false);
     }
   }
 
@@ -168,28 +211,92 @@ export function GalleryBrowser({
 
       {showModeration && role === "admin" && pending.length > 0 && (
         <section className="stack gallery-pending">
-          <h2>Pending approval ({pending.length})</h2>
+          <div className="sechead">
+            <h2>Pending approval ({pending.length})</h2>
+            <label className="gallery-select-all">
+              <input type="checkbox" checked={allPendingSelected} onChange={toggleSelectAll} disabled={modBusy} />
+              Select all
+            </label>
+          </div>
+          {selectedCount > 0 && (
+            <div className="row gallery-bulk-bar">
+              <span className="note" style={{ margin: 0 }}>
+                {selectedCount} selected
+              </span>
+              <button
+                type="button"
+                className="btn gold"
+                disabled={modBusy}
+                onClick={() => void moderate("approve", [...selected])}
+              >
+                Approve selected
+              </button>
+              <button
+                type="button"
+                className="btn"
+                disabled={modBusy}
+                onClick={() => void moderate("reject", [...selected])}
+              >
+                Reject selected
+              </button>
+              <button
+                type="button"
+                className="btn ghost"
+                disabled={modBusy}
+                onClick={() => void moderate("delete", [...selected])}
+              >
+                Delete selected
+              </button>
+            </div>
+          )}
           {modMsg && <p className="note">{modMsg}</p>}
           <div className="gallery-grid">
-            {pending.map((p) => (
-              <article key={p.id} className="gallery-tile pending">
-                <button type="button" className="gallery-thumb" onClick={() => setLightbox(p)}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={p.thumbUrl || p.blobUrl} alt={p.caption || "Pending photo"} loading="lazy" />
-                </button>
-                <div className="gallery-tile-actions">
-                  <button type="button" className="btn gold" onClick={() => void moderate("approve", p.id)}>
-                    Approve
+            {pending.map((p) => {
+              const on = selected.has(p.id);
+              return (
+                <article key={p.id} className={`gallery-tile pending${on ? " selected" : ""}`}>
+                  <label className="gallery-check">
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      disabled={modBusy}
+                      onChange={() => toggleSelected(p.id)}
+                      aria-label={`Select ${p.caption || p.id}`}
+                    />
+                  </label>
+                  <button type="button" className="gallery-thumb" onClick={() => setLightbox(p)}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={p.thumbUrl || p.blobUrl} alt={p.caption || "Pending photo"} loading="lazy" />
                   </button>
-                  <button type="button" className="btn" onClick={() => void moderate("reject", p.id)}>
-                    Reject
-                  </button>
-                  <button type="button" className="btn ghost" onClick={() => void moderate("delete", p.id)}>
-                    Delete
-                  </button>
-                </div>
-              </article>
-            ))}
+                  <div className="gallery-tile-actions">
+                    <button
+                      type="button"
+                      className="btn gold"
+                      disabled={modBusy}
+                      onClick={() => void moderate("approve", p.id)}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={modBusy}
+                      onClick={() => void moderate("reject", p.id)}
+                    >
+                      Reject
+                    </button>
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      disabled={modBusy}
+                      onClick={() => void moderate("delete", p.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </section>
       )}
@@ -254,8 +361,23 @@ export function GalleryBrowser({
                 <a className="btn gold" href={downloadUrl(lightbox)} download>
                   Download
                 </a>
+                {role === "admin" && lightbox.status === "pending" && (
+                  <button
+                    type="button"
+                    className="btn gold"
+                    disabled={modBusy}
+                    onClick={() => void moderate("approve", lightbox.id)}
+                  >
+                    Approve
+                  </button>
+                )}
                 {role === "admin" && (
-                  <button type="button" className="btn ghost" onClick={() => void moderate("delete", lightbox.id)}>
+                  <button
+                    type="button"
+                    className="btn ghost"
+                    disabled={modBusy}
+                    onClick={() => void moderate("delete", lightbox.id)}
+                  >
                     Delete
                   </button>
                 )}

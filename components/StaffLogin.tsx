@@ -54,6 +54,9 @@ export function StaffLogin() {
               <Link className="btn gold" href={seasonHref("/score")}>
                 Score matches
               </Link>
+              <Link className="btn" href={seasonHref("/admin?tab=fixtures")}>
+                Fixtures
+              </Link>
               <Link className="btn" href={seasonHref("/gallery")}>
                 Gallery
               </Link>

@@ -11,11 +11,13 @@ export function BestPlayerPicker({
   teamA,
   teamB,
   compact = false,
+  title = "Best player (optional)",
 }: {
   matchId: string;
   teamA: string;
   teamB: string;
   compact?: boolean;
+  title?: string;
 }) {
   const { state, act, team } = useLive();
   const [query, setQuery] = useState("");
@@ -63,7 +65,7 @@ export function BestPlayerPicker({
   return (
     <div className={`stack best-pick ${compact ? "compact" : ""}`}>
       <div className="sechead" style={{ margin: 0 }}>
-        <h3 style={{ margin: 0, fontSize: 16 }}>Best player (optional)</h3>
+        <h3 style={{ margin: 0, fontSize: 16 }}>{title}</h3>
       </div>
       {curPlayer && curTeam ? (
         <p className="note" style={{ margin: 0 }}>
