@@ -19,7 +19,7 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     description: "Live scores, fixtures and points table for TNH Volleyball",
     start_url: "/",
     display: "standalone",
-    // Allow auto-rotate (portrait + landscape). portrait-primary locks PWAs upright.
+    // "any" = follow the phone’s autorotate (portrait + landscape). Do not use portrait-primary.
     orientation: "any",
     background_color: "#070B16",
     theme_color: "#070B16",
