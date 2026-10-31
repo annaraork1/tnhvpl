@@ -5,11 +5,13 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ClientTime } from "@/components/ClientTime";
 import { fireConfetti, WinConfetti } from "@/components/Confetti";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import { PracticeLiveScore } from "@/components/PracticeLiveScore";
 import { PressureBallBadge } from "@/components/PressureBallBadge";
 import { ScoreAdjust } from "@/components/ScoreAdjust";
 import { ShareMatch } from "@/components/ShareMatch";
 import { TimeoutOverlay } from "@/components/TimeoutOverlay";
+import { WatchingLine, usePresence } from "@/components/Watching";
 import { WhistleButton } from "@/components/WhistleButton";
 import { Loading } from "@/components/ui";
 import { useLive } from "@/components/LiveProvider";
@@ -101,6 +103,7 @@ export default function PracticeMatchPage() {
   const [flip, setFlip] = useState(false);
   const [adminPin, setAdminPin] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [dropConfirmOpen, setDropConfirmOpen] = useState(false);
   const [updatedAt, setUpdatedAt] = useState(0);
   const scoreQueue = useRef(Promise.resolve());
   const pendingCount = useRef(0);
@@ -218,6 +221,9 @@ export default function PracticeMatchPage() {
     return ev;
   }, [match, pending]);
 
+  const practiceLive = (state?.status ?? match?.status) === "live";
+  const watching = usePresence({ kind: "p", id, live: practiceLive, beat: false });
+
   if (error && !match) {
     return (
       <div className="wrap">
@@ -240,6 +246,38 @@ export default function PracticeMatchPage() {
   const adminPinForAct = () =>
     (adminPin || live.pin || (typeof window !== "undefined" ? localStorage.getItem("tnhvpl-pin") : "") || "").trim();
   const color = (s: Side) => (s === "A" ? COLOR_A : COLOR_B);
+  const showAbandon = isHost || isAdmin;
+
+  const runAbandon = async () => {
+    let pin: string | undefined;
+    if (isAdmin && !isHost) {
+      pin = adminPinForAct() || window.prompt("Admin PIN") || "";
+      if (!pin.trim()) {
+        flash("Admin PIN required to abandon a guest practice");
+        return;
+      }
+    }
+    const ok = await act({ type: "abandon" }, pin);
+    if (ok) {
+      setDropConfirmOpen(false);
+      clearHostToken(id);
+      router.push("/practice");
+    }
+  };
+
+  const dropConfirmModal = (
+    <ConfirmModal
+      open={dropConfirmOpen}
+      title="Drop this practice?"
+      message="It will not be saved to history. This cannot be undone."
+      confirmLabel={isAdmin && !isHost ? "Drop (admin)" : "Drop"}
+      cancelLabel="Cancel"
+      danger
+      busy={busy}
+      onCancel={() => setDropConfirmOpen(false)}
+      onConfirm={() => void runAbandon()}
+    />
+  );
 
   const confettiColors = [COLOR_A, COLOR_B, "#f5bc28", "#f5f1e6"];
 
@@ -471,22 +509,7 @@ export default function PracticeMatchPage() {
                 className="btn red"
                 type="button"
                 disabled={busy}
-                onClick={async () => {
-                  if (!askConfirm("Abandon this practice? It will not be saved to history.")) return;
-                  let pin: string | undefined;
-                  if (isAdmin && !isHost) {
-                    pin = adminPinForAct() || window.prompt("Admin PIN") || "";
-                    if (!pin.trim()) {
-                      flash("Admin PIN required to abandon a guest practice");
-                      return;
-                    }
-                  }
-                  const ok = await act({ type: "abandon" }, pin);
-                  if (ok) {
-                    clearHostToken(id);
-                    router.push("/practice");
-                  }
-                }}
+                onClick={() => setDropConfirmOpen(true)}
               >
                 {isAdmin && !isHost ? "Abandon (admin)" : "Abandon"}
               </button>
@@ -494,6 +517,7 @@ export default function PracticeMatchPage() {
           </div>
           {msg && <div className="toast">{msg}</div>}
         </div>
+        {dropConfirmModal}
       </div>
     );
   }
@@ -558,25 +582,6 @@ export default function PracticeMatchPage() {
     </button>
   );
 
-  const abandonLive = async () => {
-    if (!askConfirm("Abandon this practice? It will not be saved to history.")) return;
-    let pin: string | undefined;
-    if (isAdmin && !isHost) {
-      pin = adminPinForAct() || window.prompt("Admin PIN") || "";
-      if (!pin.trim()) {
-        flash("Admin PIN required to abandon a guest practice");
-        return;
-      }
-    }
-    const ok = await act({ type: "abandon" }, pin);
-    if (ok) {
-      clearHostToken(id);
-      router.push("/practice");
-    }
-  };
-
-  const showAbandon = isHost || isAdmin;
-
   return (
     <div className="scorer">
       <WinConfetti matchKey={id} m={m} colors={confettiColors} />
@@ -595,6 +600,12 @@ export default function PracticeMatchPage() {
           </div>
         </div>
         <div className="sbar-actions">
+          {m.status === "live" ? (
+            <>
+              <span className="live-dot" title="Live" aria-label="Live" />
+              {watching != null ? <WatchingLine count={watching} /> : null}
+            </>
+          ) : null}
           <ShareMatch
             id={id}
             title={`${match.labelA} vs ${match.labelB}`}
@@ -610,7 +621,7 @@ export default function PracticeMatchPage() {
               className="btn red"
               type="button"
               disabled={busy}
-              onClick={() => void abandonLive()}
+              onClick={() => setDropConfirmOpen(true)}
               title={isAdmin && !isHost ? "Admin: abandon guest practice" : "Abandon this practice (not saved)"}
               aria-label={isAdmin && !isHost ? "Abandon practice as admin" : "Abandon practice"}
             >
@@ -684,6 +695,7 @@ export default function PracticeMatchPage() {
       )}
 
       {msg && <div className="toast">{msg}</div>}
+      {dropConfirmModal}
     </div>
   );
 }

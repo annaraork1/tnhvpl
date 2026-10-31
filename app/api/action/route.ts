@@ -80,7 +80,7 @@ function staffRoleFor(pin: string | null): Role | null {
 }
 
 const MATCH_ACTIONS = new Set(["start", "point", "adjust", "timeout", "resume", "nextSet", "undo"]);
-const SCORER_OK = new Set([...MATCH_ACTIONS, "saveAwards", "setBestPlayer"]);
+const SCORER_OK = new Set([...MATCH_ACTIONS, "saveAwards", "setBestPlayer", "resetMatch"]);
 const AUCTIONEER_OK = new Set([
   "auctionStart",
   "auctionDraw",

@@ -28,6 +28,45 @@ h3 { font-size: 20px; font-weight: 700; }
 .error { color: #ff8a73; margin: 0; }
 .note { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
 .kicker { font-family: var(--display); font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); font-size: 13px; }
+.live-card .sechead { align-items: center; }
+.live-meta { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.watching-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px 5px 9px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  vertical-align: middle;
+}
+.watching-eye { width: 18px; height: 18px; flex-shrink: 0; }
+.watching-num { font-variant-numeric: tabular-nums; font-size: 1em; }
+.sbar .watching-badge {
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 16px;
+  padding: 6px 12px 6px 9px;
+  flex-shrink: 0;
+}
+.sbar .watching-eye { width: 17px; height: 17px; }
+.sbar-actions .watching-badge { margin-right: 2px; }
+.sbar-actions .live-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e53935;
+  box-shadow: 0 0 0 3px rgba(229, 57, 53, 0.28);
+  flex-shrink: 0;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sbar-actions .live-dot { animation: none; }
+}
 
 .wrap { max-width: 1040px; margin: 0 auto; padding: 16px max(16px, env(safe-area-inset-left)) 48px; display: grid; gap: 20px; }
 .stack { display: grid; gap: 12px; }
@@ -154,6 +193,7 @@ button:disabled.busy-pulse {
 .share-row { justify-content: flex-end; margin-top: -4px; gap: 4px; }
 .share-row .btn { padding: 8px 12px; font-size: 14px; }
 .pill { display: inline-block; font-family: var(--display); font-weight: 700; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 10px; border-radius: 999px; }
+.live-meta .pill.live { font-size: 15px; padding: 4px 12px; }
 .pill.live { background: var(--live); color: #fff; animation: pulse 1.6s ease-in-out infinite; }
 .pill.done { border: 1px solid var(--muted); color: var(--muted); }
 @keyframes pulse { 50% { opacity: 0.65; } }
@@ -540,6 +580,9 @@ table.standings { width: 100%; border-collapse: collapse; font-variant-numeric: 
 
 /* timeout countdown */
 .timeout-banner { z-index: 45; }
+.confirm-banner { z-index: 55; }
+.confirm-banner .card { text-align: center; }
+.confirm-banner h2 { font-size: 24px; }
 .timeout-card { border-color: color-mix(in srgb, var(--tc) 55%, var(--line)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--tc) 35%, transparent); }
 .timeout-card h2 { font-size: clamp(22px, 6vw, 32px); color: var(--tc); }
 .timeout-clock { font-family: var(--display); font-weight: 800; font-size: clamp(72px, 22vw, 120px); line-height: 0.9; font-variant-numeric: tabular-nums; color: var(--cream); }

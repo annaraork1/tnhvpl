@@ -6,6 +6,7 @@ import type { PracticeMatchPublic } from "@/lib/practiceTypes";
 import type { MatchState, Side } from "@/lib/types";
 import { WinConfetti } from "./Confetti";
 import { PressureBallBadge } from "./PressureBallBadge";
+import { MatchWatching } from "./Watching";
 import { ShareMatch } from "./ShareMatch";
 import { TimeoutOverlay } from "./TimeoutOverlay";
 import { StatusPill } from "./ui";
@@ -90,7 +91,10 @@ export function PracticeLiveScore({
   const head = (
     <div className="sechead">
       <span className="kicker">Practice · {match.mode === "live" ? "Live scored" : "Quick"}</span>
-      <StatusPill m={m} />
+      <span className="live-meta">
+        <MatchWatching kind="p" id={match.id} live={m.status === "live"} />
+        <StatusPill m={m} />
+      </span>
     </div>
   );
 

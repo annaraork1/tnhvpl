@@ -7,6 +7,7 @@ import type { Fixture } from "@/lib/types";
 import { WinConfetti } from "./Confetti";
 import { useLive } from "./LiveProvider";
 import { PressureBallBadge } from "./PressureBallBadge";
+import { MatchWatching } from "./Watching";
 import { ShareMatch } from "./ShareMatch";
 import { TimeoutOverlay } from "./TimeoutOverlay";
 import { Logo, StatusPill, fmtDate } from "./ui";
@@ -31,7 +32,10 @@ export function LiveScore({ fx, link = true, share = true }: { fx: Fixture; link
       <span className="kicker">
         {fx.stage === "League" ? `Match ${fx.no}` : fx.stage} · {fmtDate(fx.date)} · {fx.time}
       </span>
-      <StatusPill m={m} />
+      <span className="live-meta">
+        <MatchWatching kind="t" id={fx.id} live={m.status === "live"} />
+        <StatusPill m={m} />
+      </span>
     </div>
   );
   const side = (id: "A" | "B") => {

@@ -5,10 +5,13 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BestPlayerPicker } from "@/components/BestPlayerPicker";
 import { WinConfetti } from "@/components/Confetti";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import { useLive } from "@/components/LiveProvider";
 import { PressureBallBadge } from "@/components/PressureBallBadge";
 import { ScoreAdjust } from "@/components/ScoreAdjust";
+import { ShareMatch } from "@/components/ShareMatch";
 import { TimeoutOverlay } from "@/components/TimeoutOverlay";
+import { WatchingLine, usePresence } from "@/components/Watching";
 import { WhistleButton } from "@/components/WhistleButton";
 import { Loading, Logo, PinGate } from "@/components/ui";
 import { DEFAULT_TIMEOUT_SECONDS, derive, formatFor, other } from "@/lib/engine";
@@ -32,6 +35,8 @@ function Console() {
   const [pending, setPending] = useState<Op[]>([]);
   const [flip, setFlip] = useState(false);
   const [toast, setToast] = useState("");
+  const [dropConfirmOpen, setDropConfirmOpen] = useState(false);
+  const [dropBusy, setDropBusy] = useState(false);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
 
   const say = useCallback((m: string) => {
@@ -70,6 +75,9 @@ function Console() {
     }
     return ev;
   }, [doc, pending]);
+
+  const serverLive = calc?.ms[id]?.status === "live";
+  const watching = usePresence({ kind: "t", id, live: !!serverLive, beat: false });
 
   const send = useCallback(
     (op: Op, type: string, payload: Record<string, unknown> = {}) => {
@@ -219,6 +227,22 @@ function Console() {
   const confettiColors = [winSide ? T[winSide]?.color : null, T.A?.color, T.B?.color, "#f5bc28", "#f5f1e6"].filter(
     (c): c is string => !!c,
   );
+  const shareTitle = `${name("A")} vs ${name("B")}`;
+
+  const runDrop = async () => {
+    setDropBusy(true);
+    const r = await act("resetMatch", { id });
+    setDropBusy(false);
+    if (!r.ok) {
+      say(r.error ?? "Could not drop match");
+      return;
+    }
+    setDropConfirmOpen(false);
+    setPending([]);
+    if (r.state) accept(r.state);
+    else refresh(true);
+    say("Match score cleared");
+  };
 
   return (
     <div className="scorer">
@@ -235,9 +259,26 @@ function Console() {
           </div>
         </div>
         <div className="sbar-actions">
+          {m.status === "live" ? (
+            <>
+              <span className="live-dot" title="Live" aria-label="Live" />
+              {watching != null ? <WatchingLine count={watching} /> : null}
+            </>
+          ) : null}
+          <ShareMatch id={id} title={shareTitle} className="btn ghost" />
           <WhistleButton />
           <button className="btn ghost" onClick={() => setFlip((f) => !f)} aria-label="Swap sides on screen">
             ⇄
+          </button>
+          <button
+            className="btn red"
+            type="button"
+            disabled={dropBusy}
+            onClick={() => setDropConfirmOpen(true)}
+            title="Clear this match score"
+            aria-label="Drop match score"
+          >
+            Drop
           </button>
         </div>
       </div>
@@ -321,6 +362,17 @@ function Console() {
         </div>
       )}
       {toast && <div className="toast">{toast}</div>}
+      <ConfirmModal
+        open={dropConfirmOpen}
+        title="Drop this match?"
+        message="The score will be cleared and the match will go back to not started. This cannot be undone."
+        confirmLabel="Drop"
+        cancelLabel="Cancel"
+        danger
+        busy={dropBusy}
+        onCancel={() => setDropConfirmOpen(false)}
+        onConfirm={() => void runDrop()}
+      />
     </div>
   );
 }
