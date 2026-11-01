@@ -4,8 +4,10 @@ import Link from "next/link";
 import { formatFor } from "@/lib/engine";
 import { pressureBallForSide } from "@/lib/pressureBall";
 import type { Fixture } from "@/lib/types";
+import { matchTiming } from "@/lib/matchTiming";
 import { WinConfetti } from "./Confetti";
 import { useLive } from "./LiveProvider";
+import { MatchTimingDetail } from "./MatchTiming";
 import { PressureBallBadge } from "./PressureBallBadge";
 import { MatchWatching } from "./Watching";
 import { ShareMatch } from "./ShareMatch";
@@ -27,6 +29,7 @@ export function LiveScore({ fx, link = true, share = true }: { fx: Fixture; link
   const confettiColors = [winTeam?.color, tA?.color, tB?.color, "#f5bc28", "#f5f1e6"].filter((c): c is string => !!c);
   const shareTitle = `${tA?.name ?? r.labelA} vs ${tB?.name ?? r.labelB}`;
   const formatLine = `Best of ${fmt.bestOf} · sets to ${fmt.targets.join("-")} · win by ${fmt.winBy}${fmt.cap ? ` · cap ${fmt.cap}` : ""}`;
+  const timing = m.status === "done" ? matchTiming(state.matches[fx.id]?.ev ?? [], fmt) : null;
   const head = (
     <div className="sechead">
       <span className="kicker">
@@ -85,7 +88,7 @@ export function LiveScore({ fx, link = true, share = true }: { fx: Fixture; link
           {formatLine}
         </p>
       )}
-      {m.sets.some((x) => x.a + x.b > 0) && (
+      {m.sets.some((x) => x.a + x.b > 0) && !(timing?.done) && (
         <div className="sethist">
           {m.sets.map((x, i) =>
             x.a + x.b > 0 || x.winner ? (
@@ -96,6 +99,7 @@ export function LiveScore({ fx, link = true, share = true }: { fx: Fixture; link
           )}
         </div>
       )}
+      {timing?.done && <MatchTimingDetail timing={timing} />}
       {m.status === "live" && s && (s.toA > 0 || s.toB > 0) && (
         <p className="note" style={{ textAlign: "center" }}>
           Timeouts this set: {tA?.short ?? "A"} {s.toA} · {tB?.short ?? "B"} {s.toB}

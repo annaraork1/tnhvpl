@@ -208,7 +208,12 @@ button:disabled.busy-pulse {
 /* fixtures */
 .mlist { display: grid; gap: 8px; }
 .mrow { display: grid; grid-template-columns: 74px 1fr auto; gap: 12px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; }
+.mrow.has-timing { grid-template-rows: auto auto; }
+.mrow .mtiming { grid-column: 1 / -1; }
 .mrow.live { border-color: var(--live); }
+.match-timing { display: grid; gap: 2px; }
+.match-timing-compact small { display: block; font-size: 11px; line-height: 1.35; }
+.match-timing-detail .set-timing em { font-style: normal; color: var(--muted); font-size: 12px; }
 .mmeta { display: grid; line-height: 1.2; }
 .mmeta b { font-family: var(--display); font-size: 18px; }
 .mmeta span { color: var(--muted); font-size: 12px; }
@@ -223,6 +228,7 @@ button:disabled.busy-pulse {
   .mrow { grid-template-columns: 56px 1fr; }
   .mside { grid-column: 1 / -1; justify-items: start; grid-auto-flow: column; justify-content: start; gap: 8px; align-items: center; }
   .mside:empty { display: none; }
+  .mrow .mtiming { grid-column: 1 / -1; }
 }
 
 /* standings */

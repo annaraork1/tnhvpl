@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useState } from "react";
 import { formatFor, scoreLine, TIE_LABELS } from "@/lib/engine";
+import { matchTiming } from "@/lib/matchTiming";
 import { PLAYOFF_QUALIFY } from "@/lib/qualify";
 import type { Fixture, MatchState, Team } from "@/lib/types";
 import { useLive } from "./LiveProvider";
+import { MatchTimingCompact } from "./MatchTiming";
 
 export function Loading({ label }: { label?: string }) {
   const { error, loading } = useLive();
@@ -60,8 +62,10 @@ export function MatchRow({ fx }: { fx: Fixture }) {
   const fmt = formatFor(fx, state.config.settings);
   const wA = m.status === "done" && m.winner === "A";
   const wB = m.status === "done" && m.winner === "B";
+  const timing =
+    m.status === "done" ? matchTiming(state.matches[fx.id]?.ev ?? [], fmt) : null;
   return (
-    <Link href={`/match/${fx.id}`} className={`mrow ${m.status}`}>
+    <Link href={`/match/${fx.id}`} className={`mrow ${m.status}${timing?.done ? " has-timing" : ""}`}>
       <div className="mmeta">
         <b>{fx.time}</b>
         <span>{fx.stage === "League" ? `Match ${fx.no}` : fx.stage}</span>
@@ -81,6 +85,11 @@ export function MatchRow({ fx }: { fx: Fixture }) {
         <StatusPill m={m} />
         {m.status !== "scheduled" && <small className="muted">{scoreLine(m)}</small>}
       </div>
+      {timing?.done && (
+        <div className="mtiming">
+          <MatchTimingCompact timing={timing} />
+        </div>
+      )}
     </Link>
   );
 }
