@@ -569,6 +569,53 @@ function AdminInner() {
       {tab === "rules" && (
         <div className="admin-panel stack">
       <section className="card stack">
+        <h2>Match format — set points</h2>
+        <p className="note">
+          How many points win each set (e.g. 21-21-15). League and playoff formats for {seasonLabel} only.
+          Changing set rules re-checks matches already scored with the new rules, so change them before the first match when you can.
+        </p>
+        {fmtEditor("league", "League matches")}
+        {fmtEditor("playoff", "Playoffs & final")}
+        <div className="fields">
+          <label>
+            Timeout length (seconds)
+            <input
+              type="number"
+              min={5}
+              max={300}
+              value={settings.timeoutSeconds ?? 30}
+              onChange={(e) => setSettings({ ...settings, timeoutSeconds: Number(e.target.value) })}
+            />
+          </label>
+        </div>
+        <p className="note">When a scorer calls a timeout, a countdown runs for this many seconds. After it ends they tap Resume to continue the match.</p>
+        <label className="row">
+          <input type="checkbox" checked={settings.showPhotos} onChange={(e) => setSettings({ ...settings, showPhotos: e.target.checked })} />
+          Show player photos on team pages
+        </label>
+        <div className="row">
+          {formatError && <p className="error">{formatError}</p>}
+          <button
+            className="btn gold"
+            disabled={busy || !!formatError}
+            aria-busy={busy}
+            onClick={() => run("saveSettings", { settings }, "Rules saved for this tournament")}
+          >
+            {busy ? "Saving…" : "Save rules"}
+          </button>
+          <button
+            className="btn ghost"
+            onClick={() => {
+              if (!askConfirm("Discard unsaved rules changes?")) return;
+              setSettings(structuredClone(state.config.settings));
+            }}
+          >
+            Discard changes
+          </button>
+        </div>
+      </section>
+
+      <section className="card stack">
         <h2>Points table rules</h2>
         <p className="note">Saved only for {seasonLabel}.</p>
         <div className="row">
@@ -621,51 +668,6 @@ function AdminInner() {
               + {TIE_LABELS[k]}
             </button>
           ))}
-        </div>
-      </section>
-
-      <section className="card stack">
-        <h2>Match format</h2>
-        <p className="note">League and playoff formats for {seasonLabel} only.</p>
-        {fmtEditor("league", "League matches")}
-        {fmtEditor("playoff", "Playoffs & final")}
-        <div className="fields">
-          <label>
-            Timeout length (seconds)
-            <input
-              type="number"
-              min={5}
-              max={300}
-              value={settings.timeoutSeconds ?? 30}
-              onChange={(e) => setSettings({ ...settings, timeoutSeconds: Number(e.target.value) })}
-            />
-          </label>
-        </div>
-        <p className="note">When a scorer calls a timeout, a countdown runs for this many seconds. After it ends they tap Resume to continue the match.</p>
-        <label className="row">
-          <input type="checkbox" checked={settings.showPhotos} onChange={(e) => setSettings({ ...settings, showPhotos: e.target.checked })} />
-          Show player photos on team pages
-        </label>
-        <p className="note">Changing set rules re-checks matches already scored with the new rules, so change them before the first match.</p>
-        <div className="row">
-          {formatError && <p className="error">{formatError}</p>}
-          <button
-            className="btn gold"
-            disabled={busy || !!formatError}
-            aria-busy={busy}
-            onClick={() => run("saveSettings", { settings }, "Rules saved for this tournament")}
-          >
-            {busy ? "Saving…" : "Save rules"}
-          </button>
-          <button
-            className="btn ghost"
-            onClick={() => {
-              if (!askConfirm("Discard unsaved rules changes?")) return;
-              setSettings(structuredClone(state.config.settings));
-            }}
-          >
-            Discard changes
-          </button>
         </div>
       </section>
         </div>
@@ -757,6 +759,19 @@ function AdminInner() {
 
       {tab === "fixtures" && (
         <div className="admin-panel stack">
+      {!isScorerOnly && (
+        <section className="card stack">
+          <h2>Set points (match format)</h2>
+          <p className="note">
+            League sets to <b>{settings.league.targets.join("-")}</b> (best of {settings.league.bestOf}) · Playoffs{" "}
+            <b>{settings.playoff.targets.join("-")}</b> (best of {settings.playoff.bestOf}).
+          </p>
+          <p className="note">Change these under Rules → Match format (admin only). Prefer before the first match of the day.</p>
+          <button type="button" className="btn" onClick={() => goTab("rules")}>
+            Open Rules → Match format
+          </button>
+        </section>
+      )}
       {!isScorerOnly && <FixtureGenerator />}
 
       <section className="card stack">
