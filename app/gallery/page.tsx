@@ -18,7 +18,9 @@ function GalleryInner() {
       </div>
       <p className="muted" style={{ margin: 0 }}>
         Match photos and tournament moments. Tap a shot to view or download.
-        {role === "admin" ? " Pending public uploads show above for approval." : ""}
+        {role === "admin"
+          ? " As admin you can multi-upload (compressed on device) and approve pending public shots."
+          : ""}
       </p>
       <GalleryBrowser showUpload showFilters showModeration={role === "admin"} />
     </>

@@ -328,7 +328,7 @@ export function GalleryBrowser({
         <section className="card gallery-contribute">
           {!contributeOpen ? (
             <button type="button" className="btn gold" onClick={() => setContributeOpen(true)}>
-              Contribute a photo
+              {role === "admin" ? "Upload photos" : "Contribute a photo"}
             </button>
           ) : (
             <GalleryUpload
